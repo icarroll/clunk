@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include <limits.h>
 
 const int XSIZE = 15;
 const int YSIZE = 15;
@@ -14,7 +15,27 @@ struct thudboard
     bitboard dwarfs;
     bitboard trolls;
     bitboard blocks;
-    bool dwarfturn;
+    bool isdwarfturn;
+};
+
+struct pos
+{
+    int x;
+    int y;
+};
+
+struct move
+{
+    bool isvalid;
+    bool isdwarfmove;
+    struct pos from;
+    struct pos to;
+};
+
+const struct move nomove = {false, false, {-1,-1}, {-1,-1}};
+
+struct movestate
+{
 };
 
 char * stdlayout[] =
@@ -37,10 +58,19 @@ char * stdlayout[] =
     NULL
 };
 
+struct move search(struct thudboard * board, int depth);
+
+struct movestate initdwarfplays(struct thudboard * board);
+struct move nextdwarfplay(struct thudboard * board, struct movestate * status);
+int dwarfsearch(struct thudboard * board, int depth, int alpha, int beta);
+void undo(struct thudboard * board, struct move * play);
+
 void die(char * msg);
+
 void erase(struct thudboard * board);
 void setup(struct thudboard * board);
 void show(struct thudboard * board);
+
 bool get(bitboard bits, int x, int y);
 void set(bitboard bits, int x, int y);
 void unset(bitboard bits, int x, int y);
@@ -52,6 +82,56 @@ int main(int numargs, char * args[])
 
     setup(board);
     show(board);
+}
+
+struct move search(struct thudboard * board, int depth)
+{
+    int alpha = INT_MIN;
+    int beta = INT_MAX;
+
+    struct move bestmove = nomove;
+
+    if (board->isdwarfturn)
+    {
+        struct movestate status = initdwarfplays(board);
+        struct move play;
+
+        while (true)
+        {
+            play = nextdwarfplay(board, & status);
+            if (! play.isvalid) break;
+
+            int result = dwarfsearch(board, depth-1, alpha, beta);
+            if (result < beta)
+            {
+                beta = result;
+                bestmove = play;
+            }
+
+            undo(board, & play);
+        }
+    }
+    else
+    {
+    }
+
+    return bestmove;
+}
+
+int dwarfsearch(struct thudboard * board, int depth, int alpha, int beta)
+{
+}
+
+struct movestate initdwarfplays(struct thudboard * board)
+{
+}
+
+struct move nextdwarfplay(struct thudboard * board, struct movestate * status)
+{
+}
+
+void undo(struct thudboard * board, struct move * play)
+{
 }
 
 void die(char * msg)
@@ -69,7 +149,7 @@ void setup(struct thudboard * board)
 {
     erase(board);
 
-    board->dwarfturn = true;
+    board->isdwarfturn = true;
 
     for (int x=0; x < XSIZE; ++x)
     {
@@ -89,7 +169,7 @@ void setup(struct thudboard * board)
             case '.':
                 break;
             default:
-                die("bad layout\n");
+                die("unknown board character\n");
                 break;
             }
         }
@@ -114,27 +194,22 @@ void show(struct thudboard * board)
     fflush(stdout);
 }
 
-int frob(int x, int y)
-{
-    return y;
-}
-
-uint16_t munge(int x, int y)
+uint16_t bit(int x)
 {
     return (uint16_t) 0x8000 >> x;
 }
 
 bool get(bitboard bits, int x, int y)
 {
-    return (bits[frob(x,y)] & munge(x,y)) != 0;
+    return (bits[y] & bit(x)) != 0;
 }
 
 void set(bitboard bits, int x, int y)
 {
-    bits[frob(x,y)] |= munge(x,y);
+    bits[y] |= bit(x);
 }
 
 void unset(bitboard bits, int x, int y)
 {
-    bits[frob(x,y)] &= ~munge(x,y);
+    bits[y] &= ~bit(x);
 }
