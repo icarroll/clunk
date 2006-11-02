@@ -1,26 +1,56 @@
+import sys
 from itertools import izip, count
+
+def main():
+    b = ThudBoard()
+    while True:
+        print b.show()
+        move = search(b, 2)
+        print
+        print move
+        b.do(move)
 
 Inf = 1e100
 
 def search(board, depth):
-    return alphabeta(board, depth, -Inf, Inf)
-
-def alphabeta(board, depth, alpha, beta):
-    if depth == 0: return board.evaluate()
+    alpha,beta = -Inf,Inf
+    bestmove = None
 
     if board.dwarfturn:
         for play in board.dwarfplays():
-            undo = board.do(play)
+            board.do(play)
+            result = alphabeta(board, depth-1, alpha, beta)
+            if result < beta:
+                beta = result
+                bestmove = play
+            board.undo(play)
+    else:
+        for play in board.trollplays():
+            board.do(play)
+            result = alphabeta(board, depth-1, alpha, beta)
+            if result > alpha:
+                alpha = result
+                bestmove = play
+            board.undo(play)
+
+    return bestmove
+
+def alphabeta(board, depth, alpha, beta):
+    if depth < 1: return board.evaluate()
+
+    if board.dwarfturn:
+        for play in board.dwarfplays():
+            board.do(play)
             beta = min(beta, alphabeta(board, depth-1, alpha, beta))
-            undo()
+            board.undo(play)
             if alpha >= beta: return alpha
 
         return beta
     else:
         for play in board.trollplays():
-            undo = board.do(play)
+            board.do(play)
             alpha = max(alpha, alphabeta(board, depth-1, alpha, beta))
-            undo()
+            board.undo(play)
             if alpha >= beta: return beta
 
         return alpha
@@ -62,7 +92,7 @@ class ThudBoard:
     ...               "... "
     ...               "..T ")
     >>> sorted(b.dwarfattacksfrom(0,0))
-    [(1, 0)]
+    [((1, 0), [(1, 0)])]
 
     >>> b = ThudBoard("d.d.. "
     ...               ".dd.. "
@@ -70,12 +100,12 @@ class ThudBoard:
     ...               "...#. "
     ...               "..T.T ")
     >>> sorted(b.dwarfattacksfrom(2,2))
-    [(2, 4)]
+    [((2, 4), [(2, 4)])]
 
     >>> b = ThudBoard("ddd... "
     ...               "ddd.TT ")
     >>> sorted(b.dwarfattacksfrom(2,1))
-    [(4, 1)]
+    [((4, 1), [(4, 1)])]
 
     >>> b = ThudBoard("T.. "
     ...               "... "
@@ -94,7 +124,7 @@ class ThudBoard:
     ...               "... "
     ...               "..d ")
     >>> sorted(b.trollattacksfrom(0,0))
-    [(1, 0), (1, 1)]
+    [((1, 0), [(2, 0)]), ((1, 1), [(2, 0)])]
 
     >>> b = ThudBoard("TT... "
     ...               "TT.Td "
@@ -102,7 +132,7 @@ class ThudBoard:
     ...               "...#. "
     ...               ".d..d ")
     >>> sorted(b.trollattacksfrom(1,1))
-    [(1, 3)]
+    [((1, 3), [(1, 4)])]
 
     >>> b = ThudBoard("T")
     >>> b.evaluate()
@@ -153,6 +183,12 @@ class ThudBoard:
 
         self.dwarfturn = True
 
+        self.DWARF = "d"
+        self.TROLL = "T"
+
+        self.WHICH = {self.DWARF:(self.dwarfat, self.trollat),
+                      self.TROLL:(self.trollat, self.dwarfat)}
+
     def show(self):
         spaces = izip(self.dwarfbits, self.trollbits, self.wallbits)
         char = {(True,False,False):"d",
@@ -194,9 +230,11 @@ class ThudBoard:
             for dist in count(1):
                 dx,dy = xdir*dist, ydir*dist
                 tx,ty = x + dx, y + dy
-                if 0 <= tx < xsize and 0 <= ty < ysize:
-                    if (self.dwarfat[x - dx + xdir, y - dy + ydir]
-                        and self.trollat[tx,ty]): yield tx,ty
+                cx,cy = x - dx + xdir, y - dy + ydir
+                if (0 <= tx < xsize and 0 <= ty < ysize
+                    and 0 <= cx < xsize and 0 <= cy < ysize):
+                    if (self.dwarfat[cx,cy]
+                        and self.trollat[tx,ty]): yield (tx,ty), [(tx,ty)]
                     if occupied[tx,ty]: break
                 else: break
 
@@ -224,7 +262,9 @@ class ThudBoard:
                 if (0 <= tx < xsize and 0 <= ty < ysize
                     and self.trollat[x - dx + xdir, y - dy + ydir]
                     and not occupied[tx,ty]):
-                    if dwarfnear[tx,ty]: yield tx,ty
+                    if dwarfnear[tx,ty]:
+                        capts = self.trollat.neighborsof(tx,ty) & self.dwarfat
+                        yield (tx,ty), list(capts.positions())
                 else: break
 
     def evaluate(self):
@@ -242,13 +282,43 @@ class ThudBoard:
         return material - clump
 
     def dwarfplays(self):
-        pass
+        for dwarfpos in self.dwarfat.positions():
+            for topos,capts in self.dwarfattacksfrom(*dwarfpos):
+                yield (self.DWARF, dwarfpos, topos, capts)
+
+        for dwarfpos in self.dwarfat.positions():
+            for topos in self.dwarfmovesfrom(*dwarfpos):
+                yield (self.DWARF, dwarfpos, topos, [])
 
     def trollplays(self):
-        pass
+        for trollpos in self.trollat.positions():
+            for topos,capts in self.trollattacksfrom(*trollpos):
+                yield (self.TROLL, trollpos, topos, capts)
 
-    def do(self, play):
-        pass
+        for trollpos in self.trollat.positions():
+            for topos in self.trollmovesfrom(*trollpos):
+                yield (self.TROLL, trollpos, topos, [])
+
+
+    def do(self, (side, frompos, topos, capts)):
+        we,they = self.WHICH[side]
+
+        we[frompos] = False
+        for capt in capts:
+            they[capt] = False
+        we[topos] = True
+
+        self.dwarfturn = side == self.TROLL
+
+    def undo(self, (side, frompos, topos, capts)):
+        we,they = self.WHICH[side]
+
+        we[topos] = False
+        for capt in capts:
+            they[capt] = True
+        we[frompos] = True
+
+        self.dwarfturn = side == self.DWARF
 
 class BitBoard:
     """
@@ -290,6 +360,16 @@ class BitBoard:
 
         return newboard
 
+    def neighborsof(self, x, y):
+        newboard = BitBoard(self.xsize, [False] * len(self.data))
+
+        for tx,ty in ((x+dx,y+dy) for dx in [-1,0,1] for dy in [-1,0,1]):
+            if (tx,ty) == (x,y): continue
+            if 0 <= tx < self.xsize and 0 <= ty < self.ysize:
+                newboard[tx,ty] = True
+
+        return newboard
+
 def _test():
     import doctest
     failed,_ = doctest.testmod()
@@ -297,4 +377,10 @@ def _test():
         print "OK"
 
 if __name__ == "__main__":
-    _test()
+    if "-t" in sys.argv:
+        _test()
+    else:
+        import psyco
+        psyco.full()
+
+        main()
