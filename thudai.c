@@ -13,10 +13,14 @@ typedef uint16_t bitboard[15];
 
 struct thudboard
 {
+    bool isdwarfturn;
+
+    int numdwarfs;
+    int numtrolls;
+
     bitboard dwarfs;
     bitboard trolls;
     bitboard blocks;
-    bool isdwarfturn;
 };
 
 struct pos
@@ -168,14 +172,22 @@ struct move nextdwarfplay(struct thudboard * board, ccrContParam)
 void dodwarf(struct thudboard * board, struct move * play)
 {
     unset(board->dwarfs, play->from);
-    if (play->numcapts != 0) unset(board->trolls, play->capts[0]);
+    if (play->numcapts > 0)
+    {
+        unset(board->trolls, play->capts[0]);
+        board->numtrolls -= 1;
+    }
     set(board->dwarfs, play->to);
 }
 
 void undodwarf(struct thudboard * board, struct move * play)
 {
     unset(board->dwarfs, play->to);
-    if (play->numcapts != 0) set(board->trolls, play->capts[0]);
+    if (play->numcapts > 0)
+    {
+        board->numtrolls += 1;
+        set(board->trolls, play->capts[0]);
+    }
     set(board->dwarfs, play->from);
 }
 
@@ -214,12 +226,14 @@ void dotroll(struct thudboard * board, struct move * play)
     {
         unset(board->dwarfs, play->capts[i]);
     }
+    board->numdwarfs -= play->numcapts;
     set(board->trolls, play->to);
 }
 
 void undotroll(struct thudboard * board, struct move * play)
 {
     unset(board->trolls, play->to);
+    board->numdwarfs += play->numcapts;
     for (int i=0; i < play->numcapts; ++i)
     {
         set(board->dwarfs, play->capts[i]);
@@ -250,6 +264,9 @@ void setup(struct thudboard * board)
 
     board->isdwarfturn = true;
 
+    board->numdwarfs = 0;
+    board->numtrolls = 0;
+
     for (int x=0; x < XSIZE; ++x)
     {
         for (int y=0; y < YSIZE; ++y)
@@ -258,9 +275,11 @@ void setup(struct thudboard * board)
             {
             case 'd':
                 set(board->dwarfs, pos(x,y));
+                board->numdwarfs += 1;
                 break;
             case 'T':
                 set(board->trolls, pos(x,y));
+                board->numtrolls += 1;
                 break;
             case '#':
                 set(board->blocks, pos(x,y));
@@ -295,12 +314,10 @@ void show(struct thudboard * board)
 
 int evaluate(struct thudboard * board)
 {
-    int dwarfs = 1000 * census(board->dwarfs);
-    int trolls = 4000 * census(board->trolls);
+    int trolls = 4000 * board->numtrolls;
+    int dwarfs = 1000 * board->numdwarfs;
 
-    int group = 0;
-
-    return trolls - (dwarfs + group);
+    return trolls - dwarfs;
 }
 
 uint16_t bit(int x)
