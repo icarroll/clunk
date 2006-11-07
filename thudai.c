@@ -93,6 +93,7 @@ bool get(bitboard bits, struct pos pos);
 void set(bitboard bits, struct pos pos);
 void unset(bitboard bits, struct pos pos);
 int census(bitboard bits);
+bool hasneighbor(bitboard bits, struct pos pos);
 int countneighbors(bitboard bits, struct pos pos);
 struct pos nextpos(bitboard bits, ccrContParam);
 
@@ -346,9 +347,15 @@ struct move nexttrollplay(struct thudboard * board, ccrContParam)
 
                 if (hasneighbor(board->dwarfs, ctx->move.to))
                 {
-                    ctx->move.numcapts = countneighbors(board->dwarfs,
-                                                        ctx->move.to);
-                    ctx->move.capts[0] = ctx->move.to; //???
+                    for (int i=0; i < NUMDIRS; ++i)
+                    {
+                        struct pos capt = {ctx->move.to.x + DXS[i],
+                                           ctx->move.to.y + DYS[i]};
+                        if (dwarfat(board, capt))
+                        {
+                            ctx->move.capts[ctx->move.numcapts++] = capt;
+                        }
+                    }
                     ccrReturn(ctx->move);
                 }
             }
@@ -564,6 +571,15 @@ int census(bitboard bits)
     int total = 0;
     for (int row=0; row < SIZE; ++row) total += countbits(bits[row]);
     return total;
+}
+
+bool hasneighbor(bitboard bits, struct pos pos)
+{
+    uint16_t mask = (uint16_t) 0xe000 >> (pos.x - 1);
+
+    return ((bits[pos.y] & mask)
+            || ((pos.y-1 >= 0) && (bits[pos.y - 1] & mask))
+            || ((pos.y+1 < SIZE) && (bits[pos.y + 1] & mask)));
 }
 
 int countneighbors(bitboard bits, struct pos pos)
