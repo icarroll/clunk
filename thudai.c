@@ -6,8 +6,7 @@
 #include <limits.h>
 #include "coroutine.h"
 
-const int XSIZE = 15;
-const int YSIZE = 15;
+const int SIZE = 15;
 
 typedef uint16_t bitboard[15];
 
@@ -70,6 +69,7 @@ void undodwarf(struct thudboard * board, struct move * play);
 void placedwarf(struct thudboard * board, struct pos to);
 void placedwarfs(struct thudboard * board, int num, struct pos * tos);
 void movedwarf(struct thudboard * board, struct pos from, struct pos to);
+bool dwarfat(struct thudboard * board, struct pos pos);
 void captdwarfs(struct thudboard * board, int num, struct pos * froms);
 
 int trollsearch(struct thudboard * board, int depth, int alpha, int beta);
@@ -79,7 +79,10 @@ void undotroll(struct thudboard * board, struct move * play);
 
 void placetroll(struct thudboard * board, struct pos to);
 void movetroll(struct thudboard * board, struct pos from, struct pos to);
+bool trollat(struct thudboard * board, struct pos pos);
 void capttroll(struct thudboard * board, struct pos from);
+
+bool blockat(struct thudboard * board, struct pos pos);
 
 void erase(struct thudboard * board);
 void setup(struct thudboard * board);
@@ -91,6 +94,10 @@ void set(bitboard bits, struct pos pos);
 void unset(bitboard bits, struct pos pos);
 int census(bitboard bits);
 int countneighbors(bitboard bits, struct pos pos);
+struct pos nextpos(bitboard bits, ccrContParam);
+
+struct pos pos(int x, int y);
+bool inbounds(struct pos);
 
 int main(int numargs, char * args[])
 {
@@ -177,9 +184,88 @@ int dwarfsearch(struct thudboard * board, int depth, int alpha, int beta)
     return beta;
 }
 
+const int NUMDIRS = 8;
+const int DXS[] = {0, 1, 1, 1, 0, -1, -1, -1};
+const int DYS[] = {-1, -1, 0, 1, 1, 1, 0, -1};
+
 struct move nextdwarfplay(struct thudboard * board, ccrContParam)
 {
-    //???
+    ccrBeginContext;
+    struct move move;
+    ccrContext subctx;
+    int dir;
+    int dist;
+    int dx,dy;
+    ccrEndContext(ctx);
+
+    ccrBegin(ctx);
+    ctx->move.isdwarfmove = true;
+
+    // generate attacks
+    ctx->move.numcapts = 1;
+    ctx->subctx = NULL;
+    while (true)
+    {
+        ctx->move.from = nextpos(board->dwarfs, ctx->subctx);
+        if (! ctx->subctx) break;
+
+        for (ctx->dir = 0; ctx->dir < NUMDIRS; ++ctx->dir)
+        {
+            ctx->dx = DXS[ctx->dir];
+            ctx->dy = DYS[ctx->dir];
+
+            for (ctx->dist = 1; ctx->dist < SIZE ; ++ctx->dist)
+            {
+                ctx->move.to.x = ctx->move.from.x + ctx->dx * ctx->dist;
+                ctx->move.to.y = ctx->move.from.y + ctx->dy * ctx->dist;
+                if (! inbounds(ctx->move.to)) break;
+
+                if (dwarfat(board, ctx->move.to)
+                    || blockat(board, ctx->move.to)) break;
+
+                struct pos check;
+                check.x = ctx->move.from.x - ctx->dx * (ctx->dist-1);
+                check.y = ctx->move.from.y - ctx->dy * (ctx->dist-1);
+                if (! inbounds(check) || ! dwarfat(board, check)) break;
+
+                if (trollat(board, ctx->move.to))
+                {
+                    ctx->move.capts[0] = ctx->move.to;
+                    ccrReturn(ctx->move);
+                    break;
+                }
+            }
+        }
+    }
+
+    // generate moves
+    ctx->move.numcapts = 0;
+    // ctx->subctx is already NULL
+    while (true)
+    {
+        ctx->move.from = nextpos(board->dwarfs, ctx->subctx);
+        if (! ctx->subctx) break;
+
+        for (ctx->dir = 0; ctx->dir < NUMDIRS; ++ctx->dir)
+        {
+            ctx->dx = DXS[ctx->dir];
+            ctx->dy = DYS[ctx->dir];
+
+            for (ctx->dist = 1; ctx->dist < SIZE ; ++ctx->dist)
+            {
+                ctx->move.to.x = ctx->move.from.x + ctx->dx * ctx->dist;
+                ctx->move.to.y = ctx->move.from.y + ctx->dy * ctx->dist;
+                if (! inbounds(ctx->move.to)) break;
+
+                if (dwarfat(board, ctx->move.to)
+                    || trollat(board, ctx->move.to)
+                    || blockat(board, ctx->move.to)) break;
+
+                ccrReturn(ctx->move);
+            }
+        }
+    }
+    ccrFinishV; //???
 }
 
 void dodwarf(struct thudboard * board, struct move * play)
@@ -220,7 +306,83 @@ int trollsearch(struct thudboard * board, int depth, int alpha, int beta)
 
 struct move nexttrollplay(struct thudboard * board, ccrContParam)
 {
-    //???
+    ccrBeginContext;
+    struct move move;
+    ccrContext subctx;
+    int dir;
+    int dist;
+    int dx,dy;
+    ccrEndContext(ctx);
+
+    ccrBegin(ctx);
+    ctx->move.isdwarfmove = false;
+
+    // generate attacks
+    ctx->subctx = NULL;
+    while (true)
+    {
+        ctx->move.from = nextpos(board->trolls, ctx->subctx);
+        if (! ctx->subctx) break;
+
+        for (ctx->dir = 0; ctx->dir < NUMDIRS; ++ctx->dir)
+        {
+            ctx->dx = DXS[ctx->dir];
+            ctx->dy = DYS[ctx->dir];
+
+            for (ctx->dist = 1; ctx->dist < SIZE ; ++ctx->dist)
+            {
+                ctx->move.to.x = ctx->move.from.x + ctx->dx * ctx->dist;
+                ctx->move.to.y = ctx->move.from.y + ctx->dy * ctx->dist;
+                if (! inbounds(ctx->move.to)) break;
+
+                if (dwarfat(board, ctx->move.to)
+                    || trollat(board, ctx->move.to)
+                    || blockat(board, ctx->move.to)) break;
+
+                struct pos check;
+                check.x = ctx->move.from.x - ctx->dx * (ctx->dist-1);
+                check.y = ctx->move.from.y - ctx->dy * (ctx->dist-1);
+                if (! inbounds(check) || ! trollat(board, check)) break;
+
+                if (hasneighbor(board->dwarfs, ctx->move.to))
+                {
+                    ctx->move.numcapts = countneighbors(board->dwarfs,
+                                                        ctx->move.to);
+                    ctx->move.capts[0] = ctx->move.to; //???
+                    ccrReturn(ctx->move);
+                }
+            }
+        }
+    }
+
+    // generate moves
+    ctx->move.numcapts = 0;
+    // ctx->subctx is already NULL
+    while (true)
+    {
+        ctx->move.from = nextpos(board->dwarfs, ctx->subctx);
+        if (! ctx->subctx) break;
+
+        for (ctx->dir = 0; ctx->dir < NUMDIRS; ++ctx->dir)
+        {
+            ctx->dx = DXS[ctx->dir];
+            ctx->dy = DYS[ctx->dir];
+
+            for (ctx->dist = 1; ctx->dist < SIZE ; ++ctx->dist)
+            {
+                ctx->move.to.x = ctx->move.from.x + ctx->dx * ctx->dist;
+                ctx->move.to.y = ctx->move.from.y + ctx->dy * ctx->dist;
+                if (! inbounds(ctx->move.to)) break;
+
+                if (dwarfat(board, ctx->move.to)
+                    || trollat(board, ctx->move.to)
+                    || blockat(board, ctx->move.to)) break;
+
+                ccrReturn(ctx->move);
+            }
+        }
+    }
+    ccrFinishV; //???
 }
 
 void dotroll(struct thudboard * board, struct move * play)
@@ -240,12 +402,6 @@ void erase(struct thudboard * board)
     memset(board, 0, sizeof(struct thudboard));
 }
 
-struct pos pos(int x, int y)
-{
-    struct pos p = {x,y};
-    return p;
-}
-
 void setup(struct thudboard * board)
 {
     erase(board);
@@ -255,9 +411,9 @@ void setup(struct thudboard * board)
     board->numdwarfs = 0;
     board->numtrolls = 0;
 
-    for (int x=0; x < XSIZE; ++x)
+    for (int x=0; x < SIZE; ++x)
     {
-        for (int y=0; y < YSIZE; ++y)
+        for (int y=0; y < SIZE; ++y)
         {
             switch (stdlayout[y][x])
             {
@@ -282,9 +438,9 @@ void setup(struct thudboard * board)
 
 void show(struct thudboard * board)
 {
-    for (int x=0; x < XSIZE; ++x)
+    for (int x=0; x < SIZE; ++x)
     {
-        for (int y=0; y < YSIZE; ++y)
+        for (int y=0; y < SIZE; ++y)
         {
             putchar(' ');
 
@@ -330,6 +486,11 @@ void movedwarf(struct thudboard * board, struct pos from, struct pos to)
     set(board->dwarfs, to);
 }
 
+bool dwarfat(struct thudboard * board, struct pos pos)
+{
+    return get(board->dwarfs, pos);
+}
+
 void captdwarfs(struct thudboard * board, int num, struct pos * froms)
 {
     for (int i=0; i < num; ++i)
@@ -352,10 +513,20 @@ void movetroll(struct thudboard * board, struct pos from, struct pos to)
     set(board->trolls, to);
 }
 
+bool trollat(struct thudboard * board, struct pos pos)
+{
+    return get(board->trolls, pos);
+}
+
 void capttroll(struct thudboard * board, struct pos from)
 {
     unset(board->trolls, from);
     board->numtrolls -= 1;
+}
+
+bool blockat(struct thudboard * board, struct pos pos)
+{
+    return get(board->blocks, pos);
 }
 
 uint16_t bit(int x)
@@ -391,7 +562,7 @@ int countbits(uint16_t bits)
 int census(bitboard bits)
 {
     int total = 0;
-    for (int row=0; row < YSIZE; ++row) total += countbits(bits[row]);
+    for (int row=0; row < SIZE; ++row) total += countbits(bits[row]);
     return total;
 }
 
@@ -400,6 +571,37 @@ int countneighbors(bitboard bits, struct pos pos)
     uint16_t mask = (uint16_t) 0xe000 >> (pos.x - 1);
     int neighbors = countbits(bits[pos.y] & mask);
     if (pos.y-1 >= 0) neighbors += countbits(bits[pos.y - 1] & mask);
-    if (pos.y+1 < YSIZE) neighbors += countbits(bits[pos.y + 1] & mask);
+    if (pos.y+1 < SIZE) neighbors += countbits(bits[pos.y + 1] & mask);
     return neighbors;
+}
+
+struct pos nextpos(bitboard bits, ccrContParam)
+{
+    ccrBeginContext;
+    int x,y;
+    ccrEndContext(ctx);
+
+    ccrBegin(ctx);
+    for (ctx->y = 0; ctx->y < SIZE; ++ctx->y)
+    {
+        for (ctx->x = 0; ctx->x < SIZE; ++ctx->x)
+        {
+            if (! get(bits, pos(ctx->x,ctx->y))) continue;
+
+            ccrReturn(pos(ctx->x,ctx->y));
+        }
+    }
+    ccrFinishV; //???
+}
+
+struct pos pos(int x, int y)
+{
+    struct pos p = {x,y};
+    return p;
+}
+
+bool inbounds(struct pos pos)
+{
+    return 0 <= pos.x && pos.x < SIZE
+           && 0 <= pos.y && pos.y < SIZE;
 }
