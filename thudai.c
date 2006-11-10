@@ -24,23 +24,25 @@ struct thudboard
     bitboard blocks;
 };
 
-struct pos
+struct coord
 {
     int x;
     int y;
 };
 
-struct pos initpos = {-1,0};
+struct coord initpos = {-1,0};
 
-const int MAXCAPTS = 8;
+const int NUMDIRS = 8;
+const int DXS[] = {0, 1, 1, 1, 0, -1, -1, -1};
+const int DYS[] = {-1, -1, 0, 1, 1, 1, 0, -1};
 
 struct move
 {
     bool isdwarfmove;
-    struct pos from;
-    struct pos to;
+    struct coord from;
+    struct coord to;
     int numcapts;
-    struct pos capts[8];   // stupid c
+    struct coord capts[8];   // stupid c
 };
 
 struct genstate
@@ -71,10 +73,6 @@ char * stdlayout[] =
     "#####dd.dd#####",
 };
 
-const int NUMDIRS = 8;
-const int DXS[] = {0, 1, 1, 1, 0, -1, -1, -1};
-const int DYS[] = {-1, -1, 0, 1, 1, 1, 0, -1};
-
 struct move search(struct thudboard * board, int depth);
 
 int dwarfsearch(struct thudboard * board, int depth, int trmin, int dwmax);
@@ -82,23 +80,23 @@ struct move nextdwarfplay(struct thudboard * board, struct genstate * ctx);
 void dodwarf(struct thudboard * board, struct move * play);
 void undodwarf(struct thudboard * board, struct move * play);
 
-void placedwarf(struct thudboard * board, struct pos to);
-void placedwarfs(struct thudboard * board, int num, struct pos * tos);
-void movedwarf(struct thudboard * board, struct pos from, struct pos to);
-bool dwarfat(struct thudboard * board, struct pos pos);
-void captdwarfs(struct thudboard * board, int num, struct pos * froms);
+void placedwarf(struct thudboard * board, struct coord to);
+void placedwarfs(struct thudboard * board, int num, struct coord * tos);
+void movedwarf(struct thudboard * board, struct coord from, struct coord to);
+bool dwarfat(struct thudboard * board, struct coord pos);
+void captdwarfs(struct thudboard * board, int num, struct coord * froms);
 
 int trollsearch(struct thudboard * board, int depth, int trmin, int dwmax);
 struct move nexttrollplay(struct thudboard * board, struct genstate * ctx);
 void dotroll(struct thudboard * board, struct move * play);
 void undotroll(struct thudboard * board, struct move * play);
 
-void placetroll(struct thudboard * board, struct pos to);
-void movetroll(struct thudboard * board, struct pos from, struct pos to);
-bool trollat(struct thudboard * board, struct pos pos);
-void capttroll(struct thudboard * board, struct pos from);
+void placetroll(struct thudboard * board, struct coord to);
+void movetroll(struct thudboard * board, struct coord from, struct coord to);
+bool trollat(struct thudboard * board, struct coord pos);
+void capttroll(struct thudboard * board, struct coord from);
 
-bool blockat(struct thudboard * board, struct pos pos);
+bool blockat(struct thudboard * board, struct coord pos);
 
 void erase(struct thudboard * board);
 void setup(struct thudboard * board);
@@ -106,19 +104,19 @@ void show(struct thudboard * board);
 int evaluate(struct thudboard * board);
 bool legalmove(struct thudboard * board, struct move * play);
 void domove(struct thudboard * board, struct move * play);
+void showpos(struct coord pos);
 void showmove(struct move * play);
 struct move getmove(char * prompt);
 
-bool get(bitboard bits, struct pos pos);
-void set(bitboard bits, struct pos pos);
-void unset(bitboard bits, struct pos pos);
-int census(bitboard bits);
-bool hasneighbor(bitboard bits, struct pos pos);
-int countneighbors(bitboard bits, struct pos pos);
-struct pos nextpos(bitboard bits, struct pos);
+bool get(bitboard bits, struct coord pos);
+void set(bitboard bits, struct coord pos);
+void unset(bitboard bits, struct coord pos);
+bool hasneighbor(bitboard bits, struct coord pos);
+int countneighbors(bitboard bits, struct coord pos);
+struct coord nextpos(bitboard bits, struct coord);
 
-struct pos pos(int x, int y);
-bool inbounds(struct pos);
+struct coord coord(int x, int y);
+bool inbounds(struct coord);
 
 struct thudboard board_data;
 int main(int numargs, char * args[])
@@ -128,18 +126,17 @@ int main(int numargs, char * args[])
 
     setup(board);
 
-    if (numargs > 1 && args[1][0] == 'd') goto playdwarf;
-
     while (true)
     {
+        /*
         show(board);
 
         play = getmove("your move:\n");
         if (! legalmove(board, & play)) printf("illegal move\n");
         putchar('\n');
         domove(board, & play);
+        */
 
-playdwarf:
         show(board);
 
         puts("computer move:");
@@ -256,7 +253,7 @@ struct move nextdwarfplay(struct thudboard * board, struct genstate * ctx)
                 if (dwarfat(board, ctx->move.to)
                     || blockat(board, ctx->move.to)) break;
 
-                struct pos check;
+                struct coord check;
                 check.x = ctx->move.from.x - ctx->dx * (ctx->dist-1);
                 check.y = ctx->move.from.y - ctx->dy * (ctx->dist-1);
                 if (! inbounds(check) || ! dwarfat(board, check)) break;
@@ -375,7 +372,7 @@ struct move nexttrollplay(struct thudboard * board, struct genstate * ctx)
                     || trollat(board, ctx->move.to)
                     || blockat(board, ctx->move.to)) break;
 
-                struct pos check;
+                struct coord check;
                 check.x = ctx->move.from.x - ctx->dx * (ctx->dist-1);
                 check.y = ctx->move.from.y - ctx->dy * (ctx->dist-1);
                 if (! inbounds(check) || ! trollat(board, check)) break;
@@ -385,7 +382,7 @@ struct move nexttrollplay(struct thudboard * board, struct genstate * ctx)
                     ctx->move.numcapts = 0;
                     for (int i=0; i < NUMDIRS; ++i)
                     {
-                        struct pos capt = {ctx->move.to.x + DXS[i],
+                        struct coord capt = {ctx->move.to.x + DXS[i],
                                            ctx->move.to.y + DYS[i]};
                         if (inbounds(capt) && dwarfat(board, capt))
                         {
@@ -469,13 +466,13 @@ void setup(struct thudboard * board)
             switch (stdlayout[y][x])
             {
             case 'd':
-                placedwarf(board, pos(x,y));
+                placedwarf(board, coord(x,y));
                 break;
             case 'T':
-                placetroll(board, pos(x,y));
+                placetroll(board, coord(x,y));
                 break;
             case '#':
-                set(board->blocks, pos(x,y));
+                set(board->blocks, coord(x,y));
                 break;
             case '.':
                 break;
@@ -497,9 +494,9 @@ void show(struct thudboard * board)
         {
             putchar(' ');
 
-            if (get(board->dwarfs, pos(x,y))) putchar('d');
-            else if (get(board->trolls, pos(x,y))) putchar('T');
-            else if (get(board->blocks, pos(x,y))) putchar('#');
+            if (get(board->dwarfs, coord(x,y))) putchar('d');
+            else if (get(board->trolls, coord(x,y))) putchar('T');
+            else if (get(board->blocks, coord(x,y))) putchar('#');
             else putchar('.');
         }
         putchar('\n');
@@ -545,10 +542,11 @@ void domove(struct thudboard * board, struct move * play)
     else dotroll(board, play);
 }
 
-void showpos(struct pos pos)
+char * cols = "ABCDEFGHJKLMNPQ";
+
+void showpos(struct coord pos)
 {
-    putchar('A' + pos.x + (pos.x >= 'I'-'A') + (pos.x >= 'O'-'A'));
-    printf("%d", pos.y+1);
+    printf("%c%d", cols[pos.x], pos.y+1);
 }
 
 void showmove(struct move * play)
@@ -578,7 +576,7 @@ int lettertocolumn(char c)
     else return c - 'A' - (c > 'I') - (c > 'O');
 }
 
-bool getpos(char ** input, struct pos * pos)
+bool getpos(char ** input, struct coord * pos)
 {
     pos->x = lettertocolumn(** input);
     if (pos->x == -1) return false;
@@ -646,7 +644,7 @@ retry:
     }
 
     move.numcapts = 0;
-    while (move.numcapts < MAXCAPTS)
+    while (move.numcapts < NUMDIRS)
     {
         skipspace(& cur);
         if (* cur == '\0') break;
@@ -671,14 +669,14 @@ retry:
     return move;
 }
 
-void placedwarf(struct thudboard * board, struct pos to)
+void placedwarf(struct thudboard * board, struct coord to)
 {
     board->dwarfclump += countneighbors(board->dwarfs, to);
     set(board->dwarfs, to);
     board->numdwarfs += 1;
 }
 
-void placedwarfs(struct thudboard * board, int num, struct pos * tos)
+void placedwarfs(struct thudboard * board, int num, struct coord * tos)
 {
     for (int i=0; i < num; ++i)
     {
@@ -688,7 +686,7 @@ void placedwarfs(struct thudboard * board, int num, struct pos * tos)
     board->numdwarfs += num;
 }
 
-void movedwarf(struct thudboard * board, struct pos from, struct pos to)
+void movedwarf(struct thudboard * board, struct coord from, struct coord to)
 {
     unset(board->dwarfs, from);
     board->dwarfclump -= countneighbors(board->dwarfs, from);
@@ -696,12 +694,12 @@ void movedwarf(struct thudboard * board, struct pos from, struct pos to)
     set(board->dwarfs, to);
 }
 
-bool dwarfat(struct thudboard * board, struct pos pos)
+bool dwarfat(struct thudboard * board, struct coord pos)
 {
     return get(board->dwarfs, pos);
 }
 
-void captdwarfs(struct thudboard * board, int num, struct pos * froms)
+void captdwarfs(struct thudboard * board, int num, struct coord * froms)
 {
     for (int i=0; i < num; ++i)
     {
@@ -711,30 +709,30 @@ void captdwarfs(struct thudboard * board, int num, struct pos * froms)
     board->numdwarfs -= num;
 }
 
-void placetroll(struct thudboard * board, struct pos to)
+void placetroll(struct thudboard * board, struct coord to)
 {
     set(board->trolls, to);
     board->numtrolls += 1;
 }
 
-void movetroll(struct thudboard * board, struct pos from, struct pos to)
+void movetroll(struct thudboard * board, struct coord from, struct coord to)
 {
     unset(board->trolls, from);
     set(board->trolls, to);
 }
 
-bool trollat(struct thudboard * board, struct pos pos)
+bool trollat(struct thudboard * board, struct coord pos)
 {
     return get(board->trolls, pos);
 }
 
-void capttroll(struct thudboard * board, struct pos from)
+void capttroll(struct thudboard * board, struct coord from)
 {
     unset(board->trolls, from);
     board->numtrolls -= 1;
 }
 
-bool blockat(struct thudboard * board, struct pos pos)
+bool blockat(struct thudboard * board, struct coord pos)
 {
     return get(board->blocks, pos);
 }
@@ -744,17 +742,17 @@ uint16_t bit(int x)
     return (uint16_t) 0x8000 >> x;
 }
 
-bool get(bitboard bits, struct pos pos)
+bool get(bitboard bits, struct coord pos)
 {
     return (bits[pos.y] & bit(pos.x)) != 0;
 }
 
-void set(bitboard bits, struct pos pos)
+void set(bitboard bits, struct coord pos)
 {
     bits[pos.y] |= bit(pos.x);
 }
 
-void unset(bitboard bits, struct pos pos)
+void unset(bitboard bits, struct coord pos)
 {
     bits[pos.y] &= ~ bit(pos.x);
 }
@@ -769,49 +767,45 @@ int countbits(uint16_t bits)
     return c;
 }
 
-int census(bitboard bits)
+bool hasneighbor(bitboard bits, struct coord pos)
 {
-    int total = 0;
-    for (int row=0; row < SIZE; ++row) total += countbits(bits[row]);
-    return total;
+    for (int i=0; i < NUMDIRS; ++i)
+    {
+        struct coord neighbor = {pos.x + DXS[i], pos.y + DYS[i]};
+        if (inbounds(neighbor) && get(bits, neighbor)) return true;
+    }
+    return false;
 }
 
-bool hasneighbor(bitboard bits, struct pos pos)
+int countneighbors(bitboard bits, struct coord pos)
 {
-    uint16_t mask = (uint16_t) 0xe000 >> (pos.x - 1);
-
-    return ((bits[pos.y] & mask)
-            || ((pos.y-1 >= 0) && (bits[pos.y - 1] & mask))
-            || ((pos.y+1 < SIZE) && (bits[pos.y + 1] & mask)));
-}
-
-int countneighbors(bitboard bits, struct pos pos)
-{
-    uint16_t mask = (uint16_t) 0xe000 >> (pos.x - 1);
-    int neighbors = countbits(bits[pos.y] & mask);
-    if (pos.y-1 >= 0) neighbors += countbits(bits[pos.y - 1] & mask);
-    if (pos.y+1 < SIZE) neighbors += countbits(bits[pos.y + 1] & mask);
+    int neighbors = 0;
+    for (int i=0; i < NUMDIRS; ++i)
+    {
+        struct coord neighbor = {pos.x + DXS[i], pos.y + DYS[i]};
+        if (inbounds(neighbor)) neighbors += get(bits, neighbor);
+    }
     return neighbors;
 }
 
-struct pos nextpos(bitboard bits, struct pos cur)
+struct coord nextpos(bitboard bits, struct coord cur)
 {
     cur.x += 1;
 
     for (int i=cur.y*SIZE+cur.x; i < SIZE*SIZE; ++i)
     {
-        struct pos xy = pos(i % SIZE, i / SIZE);
-        if (get(bits, xy)) return xy;
+        struct coord pos = coord(i % SIZE, i / SIZE);
+        if (get(bits, pos)) return pos;
     }
 }
 
-struct pos pos(int x, int y)
+struct coord coord(int x, int y)
 {
-    struct pos p = {x,y};
+    struct coord p = {x,y};
     return p;
 }
 
-bool inbounds(struct pos pos)
+bool inbounds(struct coord pos)
 {
     return 0 <= pos.x && pos.x < SIZE
            && 0 <= pos.y && pos.y < SIZE;
