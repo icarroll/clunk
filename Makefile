@@ -1,3 +1,4 @@
-CFLAGS = -g -std=gnu99
+CFLAGS = -g -std=gnu99 -lreadline
 
-thudai: thudai.c
+.PHONY: all
+all: thudai
