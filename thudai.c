@@ -851,14 +851,19 @@ uint64_t turnhash;
 uint64_t dwarfhash[SIZE*SIZE];
 uint64_t trollhash[SIZE*SIZE];
 
+uint64_t random64(void)
+{
+    return (uint64_t) random() << 32 | random();
+}
+
 void initzobrist(void)
 {
-    turnhash = (uint64_t) random() << 32 | random();
+    turnhash = random64();
 
     for (int i=0; i < SIZE*SIZE; ++i)
     {
-        dwarfhash[i] = (uint64_t) random() << 32 | random();
-        trollhash[i] = (uint64_t) random() << 32 | random();
+        dwarfhash[i] = random64();
+        trollhash[i] = random64();
     }
 }
 
