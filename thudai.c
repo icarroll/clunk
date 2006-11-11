@@ -59,8 +59,6 @@ struct genstate
 struct tableentry
 {
     uint64_t hash;
-    int numdwarfs;
-    int numtrolls;
     int depth;
     int trmin;
     int dwmax;
@@ -188,7 +186,19 @@ struct move search(struct thudboard * board, int depth)
 
             dodwarf(board, & play);
 
-            int result = trollsearch(board, depth-1, trmin, dwmax);
+            int result;
+
+            struct tableentry * entry = ttget(board->hash);
+            if (entry && entry->depth >= depth-1)
+            {
+                result = entry->dwmax;
+            }
+            else
+            {
+                result = trollsearch(board, depth-1, trmin, dwmax);
+                ttput(board, depth-1, trmin, result);
+            }
+
             if (result < dwmax)
             {
                 dwmax = result;
@@ -207,7 +217,19 @@ struct move search(struct thudboard * board, int depth)
 
             dotroll(board, & play);
 
-            int result = dwarfsearch(board, depth-1, trmin, dwmax);
+            int result;
+
+            struct tableentry * entry = ttget(board->hash);
+            if (entry && entry->depth > depth)
+            {
+                result = entry->trmin;
+            }
+            else
+            {
+                result = dwarfsearch(board, depth-1, trmin, dwmax);
+                ttput(board, depth-1, result, dwmax);
+            }
+
             if (result > trmin)
             {
                 trmin = result;
@@ -235,7 +257,19 @@ int dwarfsearch(struct thudboard * board, int depth, int trmin, int dwmax)
 
         dodwarf(board, & play);
 
-        int result = trollsearch(board, depth-1, trmin, dwmax);
+        int result;
+
+        struct tableentry * entry = ttget(board->hash);
+        if (entry && entry->depth > depth)
+        {
+            result = entry->dwmax;
+        }
+        else
+        {
+            result = trollsearch(board, depth-1, trmin, dwmax);
+            ttput(board, depth-1, trmin, result);
+        }
+
         if (result < dwmax) dwmax = result;
 
         undodwarf(board, & play);
@@ -258,7 +292,7 @@ struct move nextdwarfplay(struct thudboard * board, struct genstate * ctx)
     while (true)
     {
         ctx->move.from = nextpos(board->dwarfs, ctx->move.from);
-        if (ctx->move.from.y >= SIZE) break;
+        if (ctx->move.from.x == -1) break;
 
         for (ctx->dir = 0; ctx->dir < NUMDIRS; ++ctx->dir)
         {
@@ -298,7 +332,7 @@ dwarfresume1:
     while (true)
     {
         ctx->move.from = nextpos(board->dwarfs, ctx->move.from);
-        if (ctx->move.from.y >= SIZE) break;
+        if (ctx->move.from.x == -1) break;
 
         for (ctx->dir = 0; ctx->dir < NUMDIRS; ++ctx->dir)
         {
@@ -356,7 +390,19 @@ int trollsearch(struct thudboard * board, int depth, int trmin, int dwmax)
 
         dotroll(board, & play);
 
-        int result = dwarfsearch(board, depth-1, trmin, dwmax);
+        int result;
+
+        struct tableentry * entry = ttget(board->hash);
+        if (entry && entry->depth > depth)
+        {
+            result = entry->trmin;
+        }
+        else
+        {
+            result = dwarfsearch(board, depth-1, trmin, dwmax);
+            ttput(board, depth-1, result, dwmax);
+        }
+
         if (result > trmin) trmin = result;
 
         undotroll(board, & play);
@@ -378,7 +424,7 @@ struct move nexttrollplay(struct thudboard * board, struct genstate * ctx)
     while (true)
     {
         ctx->move.from = nextpos(board->trolls, ctx->move.from);
-        if (ctx->move.from.y >= SIZE) break;
+        if (ctx->move.from.x == -1) break;
 
         for (ctx->dir = 0; ctx->dir < NUMDIRS; ++ctx->dir)
         {
@@ -428,7 +474,7 @@ trollresume1:
     while (true)
     {
         ctx->move.from = nextpos(board->trolls, ctx->move.from);
-        if (ctx->move.from.y >= SIZE) break;
+        if (ctx->move.from.x == -1) break;
 
         for (ctx->dir = 0; ctx->dir < NUMDIRS; ++ctx->dir)
         {
@@ -511,7 +557,7 @@ void setup(struct thudboard * board)
 
 void show(struct thudboard * board)
 {
-    puts("   A B C D E F G H J K L M N P Q");
+    puts("   A B C D E F G H J K L M N O P");
     for (int y=0; y < SIZE; ++y)
     {
         printf("%2d", y+1);
@@ -567,7 +613,7 @@ void domove(struct thudboard * board, struct move * play)
     else dotroll(board, play);
 }
 
-char * cols = "ABCDEFGHJKLMNPQ";
+char * cols = "ABCDEFGHJKLMNOP";
 
 void showpos(struct coord pos)
 {
@@ -597,8 +643,8 @@ void skipspace(char ** input)
 
 int lettertocolumn(char c)
 {
-    if (c < 'A' || c == 'I' || c == 'O' || c > 'Q') return -1;
-    else return c - 'A' - (c > 'I') - (c > 'O');
+    if (c < 'A' || c == 'I' || c > 'Q') return -1;
+    else return c - 'A' - (c > 'I');
 }
 
 bool getpos(char ** input, struct coord * pos)
@@ -833,6 +879,8 @@ struct coord nextpos(bitboard bits, struct coord cur)
         struct coord pos = coord(i % SIZE, i / SIZE);
         if (get(bits, pos)) return pos;
     }
+
+    return initpos;
 }
 
 struct coord coord(int x, int y)
@@ -902,8 +950,6 @@ void ttput(struct thudboard * board, int depth, int trmin, int dwmax)
     struct tableentry temp =
     {
         board->hash,
-        board->numdwarfs,
-        board->numtrolls,
         depth,
         trmin,
         dwmax,
