@@ -130,7 +130,7 @@ struct coord nextpos(bitboard bits, struct coord);
 struct coord coord(int x, int y);
 bool inbounds(struct coord);
 
-void initzobrist(void);
+void inithash(void);
 void hashturn(struct thudboard * board);
 void hashdwarf(struct thudboard * board, struct coord to);
 void hashtroll(struct thudboard * board, struct coord to);
@@ -144,7 +144,7 @@ int main(int numargs, char * args[])
     struct thudboard * board = & board_data;
     struct move play;
 
-    initzobrist();
+    inithash();
     setup(board);
 
     while (true)
@@ -856,7 +856,7 @@ uint64_t random64(void)
     return (uint64_t) random() << 32 | random();
 }
 
-void initzobrist(void)
+void inithash(void)
 {
     turnhash = random64();
 
