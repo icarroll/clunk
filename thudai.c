@@ -6,22 +6,24 @@
 #include <limits.h>
 #include <readline/readline.h>
 
-const int SIZE = 15;
+enum {SIZE = 15};
 
-typedef uint16_t bitboard[15];
+typedef uint16_t bitboard[SIZE];
 
 struct thudboard
 {
     bool isdwarfturn;
+
+    bitboard dwarfs;
+    bitboard trolls;
+    bitboard blocks;
 
     int numdwarfs;
     int numtrolls;
 
     int dwarfclump;
 
-    bitboard dwarfs;
-    bitboard trolls;
-    bitboard blocks;
+    uint64_t hash;
 };
 
 struct coord
@@ -32,9 +34,9 @@ struct coord
 
 struct coord initpos = {-1,0};
 
-const int NUMDIRS = 8;
-const int DXS[] = {0, 1, 1, 1, 0, -1, -1, -1};
-const int DYS[] = {-1, -1, 0, 1, 1, 1, 0, -1};
+enum {NUMDIRS = 8};
+int DXS[] = {0, 1, 1, 1, 0, -1, -1, -1};
+int DYS[] = {-1, -1, 0, 1, 1, 1, 0, -1};
 
 struct move
 {
@@ -42,7 +44,7 @@ struct move
     struct coord from;
     struct coord to;
     int numcapts;
-    struct coord capts[8];   // stupid c
+    struct coord capts[NUMDIRS];
 };
 
 struct genstate
@@ -52,6 +54,16 @@ struct genstate
     int dir;
     int dist;
     struct move move;
+};
+
+struct tableentry
+{
+    uint64_t hash;
+    int numdwarfs;
+    int numtrolls;
+    int depth;
+    int trmin;
+    int dwmax;
 };
 
 char * stdlayout[] =
@@ -118,12 +130,21 @@ struct coord nextpos(bitboard bits, struct coord);
 struct coord coord(int x, int y);
 bool inbounds(struct coord);
 
+void initzobrist(void);
+void hashturn(struct thudboard * board);
+void hashdwarf(struct thudboard * board, struct coord to);
+void hashtroll(struct thudboard * board, struct coord to);
+
+void ttput(struct thudboard * board, int depth, int trmin, int dwmax);
+struct tableentry * ttget(uint64_t hash);
+
 struct thudboard board_data;
 int main(int numargs, char * args[])
 {
     struct thudboard * board = & board_data;
     struct move play;
 
+    initzobrist();
     setup(board);
 
     while (true)
@@ -310,6 +331,7 @@ void dodwarf(struct thudboard * board, struct move * play)
     if (play->numcapts > 0) capttroll(board, play->capts[0]);
     movedwarf(board, play->from, play->to);
     board->isdwarfturn = false;
+    hashturn(board);
 }
 
 void undodwarf(struct thudboard * board, struct move * play)
@@ -317,6 +339,7 @@ void undodwarf(struct thudboard * board, struct move * play)
     movedwarf(board, play->to, play->from);
     if (play->numcapts > 0) placetroll(board, play->capts[0]);
     board->isdwarfturn = true;
+    hashturn(board);
 }
 
 int trollsearch(struct thudboard * board, int depth, int trmin, int dwmax)
@@ -436,6 +459,7 @@ void dotroll(struct thudboard * board, struct move * play)
     captdwarfs(board, play->numcapts, play->capts);
     movetroll(board, play->from, play->to);
     board->isdwarfturn = true;
+    hashturn(board);
 }
 
 void undotroll(struct thudboard * board, struct move * play)
@@ -443,6 +467,7 @@ void undotroll(struct thudboard * board, struct move * play)
     movetroll(board, play->to, play->from);
     placedwarfs(board, play->numcapts, play->capts);
     board->isdwarfturn = false;
+    hashturn(board);
 }
 
 void erase(struct thudboard * board)
@@ -672,6 +697,7 @@ retry:
 void placedwarf(struct thudboard * board, struct coord to)
 {
     board->dwarfclump += countneighbors(board->dwarfs, to);
+    hashdwarf(board, to);
     set(board->dwarfs, to);
     board->numdwarfs += 1;
 }
@@ -681,6 +707,7 @@ void placedwarfs(struct thudboard * board, int num, struct coord * tos)
     for (int i=0; i < num; ++i)
     {
         board->dwarfclump += countneighbors(board->dwarfs, tos[i]);
+        hashdwarf(board, tos[i]);
         set(board->dwarfs, tos[i]);
     }
     board->numdwarfs += num;
@@ -689,8 +716,10 @@ void placedwarfs(struct thudboard * board, int num, struct coord * tos)
 void movedwarf(struct thudboard * board, struct coord from, struct coord to)
 {
     unset(board->dwarfs, from);
+    hashdwarf(board, from);
     board->dwarfclump -= countneighbors(board->dwarfs, from);
     board->dwarfclump += countneighbors(board->dwarfs, to);
+    hashdwarf(board, to);
     set(board->dwarfs, to);
 }
 
@@ -704,6 +733,7 @@ void captdwarfs(struct thudboard * board, int num, struct coord * froms)
     for (int i=0; i < num; ++i)
     {
         unset(board->dwarfs, froms[i]);
+        hashdwarf(board, froms[i]);
         board->dwarfclump -= countneighbors(board->dwarfs, froms[i]);
     }
     board->numdwarfs -= num;
@@ -711,6 +741,7 @@ void captdwarfs(struct thudboard * board, int num, struct coord * froms)
 
 void placetroll(struct thudboard * board, struct coord to)
 {
+    hashtroll(board, to);
     set(board->trolls, to);
     board->numtrolls += 1;
 }
@@ -718,6 +749,8 @@ void placetroll(struct thudboard * board, struct coord to)
 void movetroll(struct thudboard * board, struct coord from, struct coord to)
 {
     unset(board->trolls, from);
+    hashtroll(board, from);
+    hashtroll(board, to);
     set(board->trolls, to);
 }
 
@@ -729,6 +762,7 @@ bool trollat(struct thudboard * board, struct coord pos)
 void capttroll(struct thudboard * board, struct coord from)
 {
     unset(board->trolls, from);
+    hashtroll(board, from);
     board->numtrolls -= 1;
 }
 
@@ -757,15 +791,17 @@ void unset(bitboard bits, struct coord pos)
     bits[pos.y] &= ~ bit(pos.x);
 }
 
+/*
 int countbits(uint16_t bits)
 {
-    /* from "Software Optimization Guide for AMD Athlon (tm) 64
-     *       and Opteron (tm) Processors" */
+    // from "Software Optimization Guide for AMD Athlon (tm) 64
+    //       and Opteron (tm) Processors"
     unsigned int w = bits - ((bits >> 1) & 0x55555555);
     unsigned int x = (w & 0x33333333) + ((w >> 2) & 0x33333333);
     unsigned int c = ((x + (x >> 4) & 0x0f0f0f0f) * 0x01010101) >> 24;
     return c;
 }
+*/
 
 bool hasneighbor(bitboard bits, struct coord pos)
 {
@@ -809,4 +845,71 @@ bool inbounds(struct coord pos)
 {
     return 0 <= pos.x && pos.x < SIZE
            && 0 <= pos.y && pos.y < SIZE;
+}
+
+uint64_t turnhash;
+uint64_t dwarfhash[SIZE*SIZE];
+uint64_t trollhash[SIZE*SIZE];
+
+void initzobrist(void)
+{
+    turnhash = (uint64_t) random() << 32 | random();
+
+    for (int i=0; i < SIZE*SIZE; ++i)
+    {
+        dwarfhash[i] = (uint64_t) random() << 32 | random();
+        trollhash[i] = (uint64_t) random() << 32 | random();
+    }
+}
+
+void hashturn(struct thudboard * board)
+{
+    board->hash ^= turnhash;
+}
+
+void hashdwarf(struct thudboard * board, struct coord to)
+{
+    board->hash ^= dwarfhash[to.y*SIZE + to.x];
+}
+
+void hashtroll(struct thudboard * board, struct coord to)
+{
+    board->hash ^= trollhash[to.y*SIZE + to.x];
+}
+
+enum
+{
+    MEMUSE = 1024 * 1024 * 1024,
+    TTABLESIZE = MEMUSE / sizeof(struct tableentry),
+};
+
+struct tableentry ttable[TTABLESIZE];
+
+int ttindex(uint64_t hash)
+{
+    return hash % TTABLESIZE;
+}
+
+void ttput(struct thudboard * board, int depth, int trmin, int dwmax)
+{
+    int index = ttindex(board->hash);
+
+    struct tableentry temp =
+    {
+        board->hash,
+        board->numdwarfs,
+        board->numtrolls,
+        depth,
+        trmin,
+        dwmax,
+    };
+    ttable[index] = temp;
+}
+
+struct tableentry * ttget(uint64_t hash)
+{
+    int index = ttindex(hash);
+
+    if (ttable[index].hash == hash) return & (ttable[index]);
+    else return NULL;
 }
