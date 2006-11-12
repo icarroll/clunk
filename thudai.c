@@ -280,6 +280,34 @@ int dwarfsearch(struct thudboard * board, int depth, int trmin, int dwmax)
     return dwmax;
 }
 
+/* ???
+struct sortref
+{
+    int score;
+    int index;
+};
+
+enum {MAXHEAP = 8};
+
+struct heap
+{
+    int size;
+    struct sortref refs[MAXHEAP];
+    struct move moves[MAXHEAP];
+};
+
+void heappush(struct heap * heap, int score, struct move move)
+{
+    heap->size += 1;
+    heap->refs[heap->size] = sortref(score, foo);
+    heap->moves[heap->size] = move;
+}
+
+struct move heappop(struct heap * heap)
+{
+}
+*/
+
 struct move nextdwarfplay(struct thudboard * board, struct genstate * ctx)
 {
     if (ctx->resume) goto * ctx->resume;
