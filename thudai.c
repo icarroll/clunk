@@ -145,20 +145,33 @@ int main(int numargs, char * args[])
     inithash();
     setup(board);
 
+    char * answer;
+again:
+    answer = readline("Would you like to play Dwarf or Troll?\n");
+
+    char c;
+    if (answer) c = answer[0];
+    else goto again;
+
+    free(answer);
+
+    if (c == 'T' || c == 't') goto computerturn;
+    else if (! (c == 'D' || c == 'd')) goto again;
+
     while (true)
     {
-        /*
         show(board);
 
         play = getmove("your move:\n");
         if (! legalmove(board, & play)) printf("illegal move\n");
         putchar('\n');
         domove(board, & play);
-        */
 
+computerturn:
         show(board);
 
         puts("computer move:");
+        fflush(stdout);
         play = search(board, 4);
         showmove(& play);
         putchar('\n');
@@ -664,6 +677,7 @@ void showmove(struct move * play)
     fflush(stdout);
 }
 
+//??? use strcspn
 void skipspace(char ** input)
 {
     for (; ** input == ' '; ++ * input);
