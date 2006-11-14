@@ -5,6 +5,7 @@
 #include <string.h>
 #include <limits.h>
 #include <ctype.h>
+#include <sys/mman.h>
 #include <readline/readline.h>
 
 enum {SIZE = 15};
@@ -144,6 +145,7 @@ void hashturn(struct thudboard * board);
 void hashdwarf(struct thudboard * board, struct coord to);
 void hashtroll(struct thudboard * board, struct coord to);
 
+void initttable(int memuse);
 void ttput(struct thudboard * board, int depth, int trmin, int dwmax);
 struct tableentry * ttget(hash_t hash);
 
@@ -157,7 +159,11 @@ int main(int numargs, char * args[])
     struct thudboard * board = & board_data;
     struct move move;
 
+    int memuse = 1024 * 1024 * (numargs > 1 ? strtol(args[1], NULL, 10)
+                                            : sizeof(struct tableentry));
+
     inithash();
+    initttable(memuse);
     setup(board);
     setupsides();
 
@@ -176,11 +182,9 @@ void setupsides(void)
     char * answer;
 sideagain:
     answer = readline("Would you like to play Dwarf or Troll?\n");
+    if (! answer) goto sideagain;
 
-    char c;
-    if (answer) c = toupper(answer[0]);
-    else goto sideagain;
-
+    char c = toupper(answer[0]);
     free(answer);
 
     if (c == 'T') movefuncs[TROLL] = humanmove;
@@ -254,11 +258,7 @@ struct move getmove(char * prompt)
 retry:
     if (line) free(line);
     line = readline(prompt);
-    if (! line)
-    {
-        printf("blank line\n");
-        goto retry;
-    }
+    if (! line) goto retry;
 
     char * cur = line;
 
@@ -1145,17 +1145,21 @@ void hashtroll(struct thudboard * board, struct coord to)
     board->hash ^= trollhash[to.y*SIZE + to.x];
 }
 
-enum
-{
-    MEMUSE = 1024 * 1024 * 1024,
-    TTABLESIZE = MEMUSE / sizeof(struct tableentry),
-};
-
-struct tableentry ttable[TTABLESIZE];
+int TTABLESIZE;
+struct tableentry * ttable;
 
 int ttindex(hash_t hash)
 {
     return hash % TTABLESIZE;
+}
+
+void initttable(int memuse)
+{
+    TTABLESIZE = memuse / sizeof(struct tableentry);
+
+    void * mem = mmap(NULL, memuse, PROT_READ | PROT_WRITE,
+                      MAP_ANON | MAP_PRIVATE, -1, 0);
+    ttable = (struct tableentry *) mem;
 }
 
 void ttput(struct thudboard * board, int depth, int trmin, int dwmax)
