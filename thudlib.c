@@ -845,14 +845,14 @@ void hashturn(struct thudboard * board)
     board->hash ^= turnhash;
 }
 
-void hashdwarf(struct thudboard * board, struct coord to)
+void hashdwarf(struct thudboard * board, struct coord pos)
 {
-    board->hash ^= dwarfhash[to.y*SIZE + to.x];
+    board->hash ^= dwarfhash[pos.y*SIZE + pos.x];
 }
 
-void hashtroll(struct thudboard * board, struct coord to)
+void hashtroll(struct thudboard * board, struct coord pos)
 {
-    board->hash ^= trollhash[to.y*SIZE + to.x];
+    board->hash ^= trollhash[pos.y*SIZE + pos.x];
 }
 
 int TTABLESIZE;
