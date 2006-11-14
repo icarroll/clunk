@@ -1,4 +1,6 @@
 CFLAGS = -g -std=gnu99 -lreadline
 
 .PHONY: all
-all: thudai
+all: clunk
+
+clunk: clunk.c thudlib.c
