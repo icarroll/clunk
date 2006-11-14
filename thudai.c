@@ -91,6 +91,7 @@ char * stdlayout[] =
 
 enum {DWARF, TROLL};
 
+void setupsides(void);
 struct move humanmove(struct thudboard * board);
 struct move computermove(struct thudboard * board);
 
@@ -98,8 +99,8 @@ struct move search(struct thudboard * board, int depth);
 
 int dwarfsearch(struct thudboard * board, int depth, int trmin, int dwmax);
 struct move nextdwarfplay(struct thudboard * board, struct genstate * ctx);
-void dodwarf(struct thudboard * board, struct move * play);
-void undodwarf(struct thudboard * board, struct move * play);
+void dodwarf(struct thudboard * board, struct move * move);
+void undodwarf(struct thudboard * board, struct move * move);
 
 void placedwarf(struct thudboard * board, struct coord to);
 void placedwarfs(struct thudboard * board, int num, struct coord * tos);
@@ -109,8 +110,8 @@ void captdwarfs(struct thudboard * board, int num, struct coord * froms);
 
 int trollsearch(struct thudboard * board, int depth, int trmin, int dwmax);
 struct move nexttrollplay(struct thudboard * board, struct genstate * ctx);
-void dotroll(struct thudboard * board, struct move * play);
-void undotroll(struct thudboard * board, struct move * play);
+void dotroll(struct thudboard * board, struct move * move);
+void undotroll(struct thudboard * board, struct move * move);
 
 void placetroll(struct thudboard * board, struct coord to);
 void movetroll(struct thudboard * board, struct coord from, struct coord to);
@@ -123,10 +124,10 @@ void erase(struct thudboard * board);
 void setup(struct thudboard * board);
 void show(struct thudboard * board);
 int evaluate(struct thudboard * board);
-bool legalmove(struct thudboard * board, struct move * play);
-void domoveforreal(struct thudboard * board, struct move * play);
+bool legalmove(struct thudboard * board, struct move * move);
+void domoveforreal(struct thudboard * board, struct move * move);
 void showpos(struct coord pos);
-void showmove(struct move * play);
+void showmove(struct move * move);
 struct move getmove(char * prompt);
 
 bool get(bitboard bits, struct coord pos);
@@ -147,18 +148,31 @@ void hashtroll(struct thudboard * board, struct coord to);
 void ttput(struct thudboard * board, int depth, int trmin, int dwmax);
 struct tableentry * ttget(hash_t hash);
 
+typedef struct move movefunc_t(struct thudboard *);
+movefunc_t * movefuncs[] = {computermove, computermove};
+
 struct thudboard board_data;
 int main(int numargs, char * args[])
 {
     struct thudboard * board = & board_data;
-    struct move play;
+    struct move move;
 
     inithash();
     setup(board);
+    setupsides();
 
-    typedef struct move movefunc_t(struct thudboard *);
-    movefunc_t * movefuncs[] = {computermove, computermove};
+    while (true)
+    {
+        putchar('\n');
+        show(board);
 
+        move = movefuncs[board->isdwarfturn ? DWARF : TROLL](board);
+        domoveforreal(board, & move);
+    }
+}
+
+void setupsides(void)
+{
     char * answer;
 sideagain:
     answer = readline("Would you like to play Dwarf or Troll?\n");
@@ -173,15 +187,6 @@ sideagain:
     else if (c == 'D' || c == 'd') movefuncs[DWARF] = humanmove;
     else if (c == 'N' || c == 'n') /* computer vs computer */;
     else goto sideagain;
-
-    while (true)
-    {
-        putchar('\n');
-        show(board);
-
-        play = movefuncs[board->isdwarfturn ? DWARF : TROLL](board);
-        domoveforreal(board, & play);
-    }
 }
 
 struct move humanmove(struct thudboard * board)
@@ -217,7 +222,7 @@ struct move search(struct thudboard * board, int depth)
     int trmin = INT_MIN;
     int dwmax = INT_MAX;
 
-    struct move play;
+    struct move move;
 
     struct genstate ctx;
     ctx.resume = NULL;
@@ -226,10 +231,10 @@ struct move search(struct thudboard * board, int depth)
     {
         while (true)
         {
-            play = nextdwarfplay(board, & ctx);
+            move = nextdwarfplay(board, & ctx);
             if (! ctx.resume) break;
 
-            dodwarf(board, & play);
+            dodwarf(board, & move);
 
             int result;
 
@@ -247,20 +252,20 @@ struct move search(struct thudboard * board, int depth)
             if (result < dwmax)
             {
                 dwmax = result;
-                bestmove = play;
+                bestmove = move;
             }
 
-            undodwarf(board, & play);
+            undodwarf(board, & move);
         }
     }
     else
     {
         while (true)
         {
-            play = nexttrollplay(board, & ctx);
+            move = nexttrollplay(board, & ctx);
             if (! ctx.resume) break;
 
-            dotroll(board, & play);
+            dotroll(board, & move);
 
             int result;
 
@@ -278,10 +283,10 @@ struct move search(struct thudboard * board, int depth)
             if (result > trmin)
             {
                 trmin = result;
-                bestmove = play;
+                bestmove = move;
             }
 
-            undotroll(board, & play);
+            undotroll(board, & move);
         }
     }
 
@@ -297,10 +302,10 @@ int dwarfsearch(struct thudboard * board, int depth, int trmin, int dwmax)
 
     while (true)
     {
-        struct move play = nextdwarfplay(board, & ctx);
+        struct move move = nextdwarfplay(board, & ctx);
         if (! ctx.resume) break;
 
-        dodwarf(board, & play);
+        dodwarf(board, & move);
 
         int result;
 
@@ -317,7 +322,7 @@ int dwarfsearch(struct thudboard * board, int depth, int trmin, int dwmax)
 
         if (result < dwmax) dwmax = result;
 
-        undodwarf(board, & play);
+        undodwarf(board, & move);
 
         if (trmin >= dwmax) return trmin;
     }
@@ -433,18 +438,18 @@ dwarfresume2:
     ctx->resume = NULL;
 }
 
-void dodwarf(struct thudboard * board, struct move * play)
+void dodwarf(struct thudboard * board, struct move * move)
 {
-    if (play->numcapts > 0) capttroll(board, play->capts[0]);
-    movedwarf(board, play->from, play->to);
+    if (move->numcapts > 0) capttroll(board, move->capts[0]);
+    movedwarf(board, move->from, move->to);
     board->isdwarfturn = false;
     hashturn(board);
 }
 
-void undodwarf(struct thudboard * board, struct move * play)
+void undodwarf(struct thudboard * board, struct move * move)
 {
-    movedwarf(board, play->to, play->from);
-    if (play->numcapts > 0) placetroll(board, play->capts[0]);
+    movedwarf(board, move->to, move->from);
+    if (move->numcapts > 0) placetroll(board, move->capts[0]);
     board->isdwarfturn = true;
     hashturn(board);
 }
@@ -458,10 +463,10 @@ int trollsearch(struct thudboard * board, int depth, int trmin, int dwmax)
 
     while (true)
     {
-        struct move play = nexttrollplay(board, & ctx);
+        struct move move = nexttrollplay(board, & ctx);
         if (! ctx.resume) break;
 
-        dotroll(board, & play);
+        dotroll(board, & move);
 
         int result;
 
@@ -478,7 +483,7 @@ int trollsearch(struct thudboard * board, int depth, int trmin, int dwmax)
 
         if (result > trmin) trmin = result;
 
-        undotroll(board, & play);
+        undotroll(board, & move);
 
         if (trmin >= dwmax) return dwmax;
     }
@@ -573,18 +578,18 @@ trollresume2:
     ctx->resume = NULL;
 }
 
-void dotroll(struct thudboard * board, struct move * play)
+void dotroll(struct thudboard * board, struct move * move)
 {
-    captdwarfs(board, play->numcapts, play->capts);
-    movetroll(board, play->from, play->to);
+    captdwarfs(board, move->numcapts, move->capts);
+    movetroll(board, move->from, move->to);
     board->isdwarfturn = true;
     hashturn(board);
 }
 
-void undotroll(struct thudboard * board, struct move * play)
+void undotroll(struct thudboard * board, struct move * move)
 {
-    movetroll(board, play->to, play->from);
-    placedwarfs(board, play->numcapts, play->capts);
+    movetroll(board, move->to, move->from);
+    placedwarfs(board, move->numcapts, move->capts);
     board->isdwarfturn = false;
     hashturn(board);
 }
@@ -816,17 +821,17 @@ bool legaltrollmove(struct thudboard * board, struct move * move)
     return true;
 }
 
-void domoveforreal(struct thudboard * board, struct move * play)
+void domoveforreal(struct thudboard * board, struct move * move)
 {
     if (board->isdwarfturn)
     {
-        dodwarf(board, play);
-        board->trollscaptured += play->numcapts;
+        dodwarf(board, move);
+        board->trollscaptured += move->numcapts;
     }
     else
     {
-        dotroll(board, play);
-        board->dwarfscaptured += play->numcapts;
+        dotroll(board, move);
+        board->dwarfscaptured += move->numcapts;
     }
 }
 
@@ -837,17 +842,17 @@ void showpos(struct coord pos)
     printf("%c%d", cols[pos.x], pos.y+1);
 }
 
-void showmove(struct move * play)
+void showmove(struct move * move)
 {
-    putchar(play->isdwarfmove ? 'd' : 'T');
+    putchar(move->isdwarfmove ? 'd' : 'T');
     putchar(' ');
-    showpos(play->from);
+    showpos(move->from);
     fputs(" - ", stdout);
-    showpos(play->to);
-    for (int i=0; i < play->numcapts; ++i)
+    showpos(move->to);
+    for (int i=0; i < move->numcapts; ++i)
     {
         fputs(" x ", stdout);
-        showpos(play->capts[i]);
+        showpos(move->capts[i]);
     }
     putchar('\n');
     fflush(stdout);
