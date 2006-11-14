@@ -45,6 +45,7 @@ sideagain:
 
     if (c == 'T') movefuncs[TROLL] = humanmove;
     else if (c == 'D') movefuncs[DWARF] = humanmove;
+    else if (c == 'B') movefuncs[TROLL] = movefuncs[DWARF] = humanmove;
     else if (c == 'N') /* computer vs computer */;
     else goto sideagain;
 }
