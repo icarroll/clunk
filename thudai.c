@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <limits.h>
+#include <ctype.h>
 #include <readline/readline.h>
 
 enum {SIZE = 15};
@@ -89,11 +90,10 @@ char * stdlayout[] =
     "#####dd.dd#####",
 };
 
-enum {DWARF, TROLL};
-
 void setupsides(void);
 struct move humanmove(struct thudboard * board);
 struct move computermove(struct thudboard * board);
+struct move getmove(char * prompt);
 
 struct move search(struct thudboard * board, int depth);
 
@@ -128,7 +128,6 @@ bool legalmove(struct thudboard * board, struct move * move);
 void domoveforreal(struct thudboard * board, struct move * move);
 void showpos(struct coord pos);
 void showmove(struct move * move);
-struct move getmove(char * prompt);
 
 bool get(bitboard bits, struct coord pos);
 void set(bitboard bits, struct coord pos);
@@ -150,6 +149,7 @@ struct tableentry * ttget(hash_t hash);
 
 typedef struct move movefunc_t(struct thudboard *);
 movefunc_t * movefuncs[] = {computermove, computermove};
+enum {DWARF, TROLL};
 
 struct thudboard board_data;
 int main(int numargs, char * args[])
@@ -178,14 +178,14 @@ sideagain:
     answer = readline("Would you like to play Dwarf or Troll?\n");
 
     char c;
-    if (answer) c = answer[0];
+    if (answer) c = toupper(answer[0]);
     else goto sideagain;
 
     free(answer);
 
-    if (c == 'T' || c == 't') movefuncs[TROLL] = humanmove;
-    else if (c == 'D' || c == 'd') movefuncs[DWARF] = humanmove;
-    else if (c == 'N' || c == 'n') /* computer vs computer */;
+    if (c == 'T') movefuncs[TROLL] = humanmove;
+    else if (c == 'D') movefuncs[DWARF] = humanmove;
+    else if (c == 'N') /* computer vs computer */;
     else goto sideagain;
 }
 
@@ -213,6 +213,113 @@ struct move computermove(struct thudboard * board)
     move = search(board, 4);
     showmove(& move);
 
+    return move;
+}
+
+//??? use strcspn
+void skipspace(char ** input)
+{
+    for (; ** input == ' '; ++ * input);
+}
+
+int lettertocolumn(char c)
+{
+    c = toupper(c);
+
+    if (c < 'A' || c == 'I' || c > 'Q') return -1;
+    else return c - 'A' - (c > 'I');
+}
+
+bool getpos(char ** input, struct coord * pos)
+{
+    pos->x = lettertocolumn(** input);
+    if (pos->x == -1) return false;
+    * input += 1;
+
+    int numchars;
+    int numconvs = sscanf(* input, "%2d%n", & pos->y, & numchars);
+    if (numconvs < 1) return false;
+    pos->y -= 1;
+    if (pos->y < 0 || pos->y >= SIZE) return false;
+
+    * input += numchars;
+    return true;
+}
+
+struct move getmove(char * prompt)
+{
+    struct move move;
+
+    char * line = NULL;
+retry:
+    if (line) free(line);
+    line = readline(prompt);
+    if (! line)
+    {
+        printf("blank line\n");
+        goto retry;
+    }
+
+    char * cur = line;
+
+    skipspace(& cur);
+    if (toupper(* cur) == 'D') move.isdwarfmove = true;
+    else if (toupper(* cur) == 'T') move.isdwarfmove = false;
+    else
+    {
+        printf("bad side %c\n", * cur);
+        goto retry;
+    }
+    cur += 1;
+
+    bool valid;
+
+    skipspace(& cur);
+    valid = getpos(& cur, & move.from);
+    if (! valid)
+    {
+        printf("bad from\n");
+        goto retry;
+    }
+
+    skipspace(& cur);
+    if (* cur++ != '-')
+    {
+        printf("missing -\n");
+        goto retry;
+    }
+
+    skipspace(& cur);
+    valid = getpos(& cur, & move.to);
+    if (! valid)
+    {
+        printf("bad to\n");
+        goto retry;
+    }
+
+    move.numcapts = 0;
+    while (move.numcapts <= NUMDIRS)
+    {
+        skipspace(& cur);
+        if (* cur == '\0') break;
+
+        skipspace(& cur);
+        if (toupper(* cur++) != 'X')
+        {
+            printf("missing x\n");
+            goto retry;
+        }
+
+        skipspace(& cur);
+        valid = getpos(& cur, & move.capts[move.numcapts++]);
+        if (! valid)
+        {
+            printf("bad capt\n");
+            goto retry;
+        }
+    }
+
+    free(line);
     return move;
 }
 
@@ -609,9 +716,9 @@ void setup(struct thudboard * board)
     {
         for (int y=0; y < SIZE; ++y)
         {
-            switch (stdlayout[y][x])
+            switch (toupper(stdlayout[y][x]))
             {
-            case 'd':
+            case 'D':
                 placedwarf(board, coord(x,y));
                 break;
             case 'T':
@@ -856,111 +963,6 @@ void showmove(struct move * move)
     }
     putchar('\n');
     fflush(stdout);
-}
-
-//??? use strcspn
-void skipspace(char ** input)
-{
-    for (; ** input == ' '; ++ * input);
-}
-
-int lettertocolumn(char c)
-{
-    if (c < 'A' || c == 'I' || c > 'Q') return -1;
-    else return c - 'A' - (c > 'I');
-}
-
-bool getpos(char ** input, struct coord * pos)
-{
-    pos->x = lettertocolumn(** input);
-    if (pos->x == -1) return false;
-    * input += 1;
-
-    int numchars;
-    int numconvs = sscanf(* input, "%2d%n", & pos->y, & numchars);
-    if (numconvs < 1) return false;
-    pos->y -= 1;
-    if (pos->y < 0 || pos->y >= SIZE) return false;
-
-    * input += numchars;
-    return true;
-}
-
-struct move getmove(char * prompt)
-{
-    struct move move;
-
-    char * line = NULL;
-retry:
-    if (line) free(line);
-    line = readline(prompt);
-    if (! line)
-    {
-        printf("blank line\n");
-        goto retry;
-    }
-
-    char * cur = line;
-
-    skipspace(& cur);
-    if (* cur == 'd') move.isdwarfmove = true;
-    else if (* cur == 'T') move.isdwarfmove = false;
-    else
-    {
-        printf("bad side %c\n", * cur);
-        goto retry;
-    }
-    cur += 1;
-
-    bool valid;
-
-    skipspace(& cur);
-    valid = getpos(& cur, & move.from);
-    if (! valid)
-    {
-        printf("bad from\n");
-        goto retry;
-    }
-
-    skipspace(& cur);
-    if (* cur++ != '-')
-    {
-        printf("missing -\n");
-        goto retry;
-    }
-
-    skipspace(& cur);
-    valid = getpos(& cur, & move.to);
-    if (! valid)
-    {
-        printf("bad to\n");
-        goto retry;
-    }
-
-    move.numcapts = 0;
-    while (move.numcapts <= NUMDIRS)
-    {
-        skipspace(& cur);
-        if (* cur == '\0') break;
-
-        skipspace(& cur);
-        if (* cur++ != 'x')
-        {
-            printf("missing x\n");
-            goto retry;
-        }
-
-        skipspace(& cur);
-        valid = getpos(& cur, & move.capts[move.numcapts++]);
-        if (! valid)
-        {
-            printf("bad capt\n");
-            goto retry;
-        }
-    }
-
-    free(line);
-    return move;
 }
 
 void placedwarf(struct thudboard * board, struct coord to)
