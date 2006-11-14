@@ -8,7 +8,10 @@
 
 enum {SIZE = 15};
 
-typedef uint16_t bitboard[SIZE];
+typedef uint16_t bitrow_t;
+typedef bitrow_t bitboard[SIZE];
+
+typedef uint64_t hash_t;
 
 struct thudboard
 {
@@ -23,7 +26,10 @@ struct thudboard
 
     int dwarfclump;
 
-    uint64_t hash;
+    hash_t hash;
+
+    int dwarfscaptured;
+    int trollscaptured;
 };
 
 struct coord
@@ -35,8 +41,8 @@ struct coord
 struct coord initpos = {-1,0};
 
 enum {NUMDIRS = 8};
-int DXS[] = {0, 1, 1, 1, 0, -1, -1, -1};
-int DYS[] = {-1, -1, 0, 1, 1, 1, 0, -1};
+int DX[NUMDIRS] = {0, 1, 1, 1, 0, -1, -1, -1};
+int DY[NUMDIRS] = {-1, -1, 0, 1, 1, 1, 0, -1};
 
 struct move
 {
@@ -58,7 +64,7 @@ struct genstate
 
 struct tableentry
 {
-    uint64_t hash;
+    hash_t hash;
     int depth;
     int trmin;
     int dwmax;
@@ -82,6 +88,11 @@ char * stdlayout[] =
     "####d.....d####",
     "#####dd.dd#####",
 };
+
+enum {DWARF, TROLL};
+
+struct move humanmove(struct thudboard * board);
+struct move computermove(struct thudboard * board);
 
 struct move search(struct thudboard * board, int depth);
 
@@ -113,7 +124,7 @@ void setup(struct thudboard * board);
 void show(struct thudboard * board);
 int evaluate(struct thudboard * board);
 bool legalmove(struct thudboard * board, struct move * play);
-void domove(struct thudboard * board, struct move * play);
+void domoveforreal(struct thudboard * board, struct move * play);
 void showpos(struct coord pos);
 void showmove(struct move * play);
 struct move getmove(char * prompt);
@@ -134,7 +145,7 @@ void hashdwarf(struct thudboard * board, struct coord to);
 void hashtroll(struct thudboard * board, struct coord to);
 
 void ttput(struct thudboard * board, int depth, int trmin, int dwmax);
-struct tableentry * ttget(uint64_t hash);
+struct tableentry * ttget(hash_t hash);
 
 struct thudboard board_data;
 int main(int numargs, char * args[])
@@ -145,38 +156,59 @@ int main(int numargs, char * args[])
     inithash();
     setup(board);
 
+    typedef struct move movefunc_t(struct thudboard *);
+    movefunc_t * movefuncs[] = {computermove, computermove};
+
     char * answer;
-again:
+sideagain:
     answer = readline("Would you like to play Dwarf or Troll?\n");
 
     char c;
     if (answer) c = answer[0];
-    else goto again;
+    else goto sideagain;
 
     free(answer);
 
-    if (c == 'T' || c == 't') goto computerturn;
-    else if (! (c == 'D' || c == 'd')) goto again;
+    if (c == 'T' || c == 't') movefuncs[TROLL] = humanmove;
+    else if (c == 'D' || c == 'd') movefuncs[DWARF] = humanmove;
+    else if (c == 'N' || c == 'n') /* computer vs computer */;
+    else goto sideagain;
 
     while (true)
     {
+        putchar('\n');
         show(board);
 
-        play = getmove("your move:\n");
-        if (! legalmove(board, & play)) printf("illegal move\n");
-        putchar('\n');
-        domove(board, & play);
-
-computerturn:
-        show(board);
-
-        puts("computer move:");
-        fflush(stdout);
-        play = search(board, 4);
-        showmove(& play);
-        putchar('\n');
-        domove(board, & play);
+        play = movefuncs[board->isdwarfturn ? DWARF : TROLL](board);
+        domoveforreal(board, & play);
     }
+}
+
+struct move humanmove(struct thudboard * board)
+{
+    struct move move;
+
+moveagain:
+    move = getmove("Your move?\n");
+    if (! legalmove(board, & move))
+    {
+        printf("illegal move\n");
+        goto moveagain;
+    }
+
+    return move;
+}
+
+struct move computermove(struct thudboard * board)
+{
+    struct move move;
+
+    puts("Thinking...");
+    fflush(stdout);
+    move = search(board, 4);
+    showmove(& move);
+
+    return move;
 }
 
 struct move bestmove;
@@ -337,8 +369,8 @@ struct move nextdwarfplay(struct thudboard * board, struct genstate * ctx)
 
         for (ctx->dir = 0; ctx->dir < NUMDIRS; ++ctx->dir)
         {
-            ctx->dx = DXS[ctx->dir];
-            ctx->dy = DYS[ctx->dir];
+            ctx->dx = DX[ctx->dir];
+            ctx->dy = DY[ctx->dir];
 
             for (ctx->dist = 1; ctx->dist < SIZE ; ++ctx->dist)
             {
@@ -377,8 +409,8 @@ dwarfresume1:
 
         for (ctx->dir = 0; ctx->dir < NUMDIRS; ++ctx->dir)
         {
-            ctx->dx = DXS[ctx->dir];
-            ctx->dy = DYS[ctx->dir];
+            ctx->dx = DX[ctx->dir];
+            ctx->dy = DY[ctx->dir];
 
             for (ctx->dist = 1; ctx->dist < SIZE ; ++ctx->dist)
             {
@@ -469,8 +501,8 @@ struct move nexttrollplay(struct thudboard * board, struct genstate * ctx)
 
         for (ctx->dir = 0; ctx->dir < NUMDIRS; ++ctx->dir)
         {
-            ctx->dx = DXS[ctx->dir];
-            ctx->dy = DYS[ctx->dir];
+            ctx->dx = DX[ctx->dir];
+            ctx->dy = DY[ctx->dir];
 
             for (ctx->dist = 1; ctx->dist < SIZE ; ++ctx->dist)
             {
@@ -492,8 +524,8 @@ struct move nexttrollplay(struct thudboard * board, struct genstate * ctx)
                     ctx->move.numcapts = 0;
                     for (int i=0; i < NUMDIRS; ++i)
                     {
-                        struct coord capt = {ctx->move.to.x + DXS[i],
-                                           ctx->move.to.y + DYS[i]};
+                        struct coord capt = {ctx->move.to.x + DX[i],
+                                           ctx->move.to.y + DY[i]};
                         if (inbounds(capt) && dwarfat(board, capt))
                         {
                             ctx->move.capts[ctx->move.numcapts++] = capt;
@@ -519,8 +551,8 @@ trollresume1:
 
         for (ctx->dir = 0; ctx->dir < NUMDIRS; ++ctx->dir)
         {
-            ctx->dx = DXS[ctx->dir];
-            ctx->dy = DYS[ctx->dir];
+            ctx->dx = DX[ctx->dir];
+            ctx->dy = DY[ctx->dir];
 
             ctx->move.to.x = ctx->move.from.x + ctx->dx;
             ctx->move.to.y = ctx->move.from.y + ctx->dy;
@@ -568,9 +600,6 @@ void setup(struct thudboard * board)
 
     board->isdwarfturn = true;
 
-    board->numdwarfs = 0;
-    board->numtrolls = 0;
-
     for (int x=0; x < SIZE; ++x)
     {
         for (int y=0; y < SIZE; ++y)
@@ -596,6 +625,11 @@ void setup(struct thudboard * board)
     }
 }
 
+char * pl(int n)
+{
+    return n == 1 ? "" : "s";
+}
+
 void show(struct thudboard * board)
 {
     puts("   A B C D E F G H J K L M N O P");
@@ -606,14 +640,21 @@ void show(struct thudboard * board)
         {
             putchar(' ');
 
-            if (get(board->dwarfs, coord(x,y))) putchar('d');
-            else if (get(board->trolls, coord(x,y))) putchar('T');
-            else if (get(board->blocks, coord(x,y))) putchar('#');
+            if (dwarfat(board, coord(x,y))) putchar('d');
+            else if (trollat(board, coord(x,y))) putchar('T');
+            else if (blockat(board, coord(x,y))) putchar('#');
             else putchar('.');
         }
         putchar('\n');
     }
-    printf("%s turn\n\n", board->isdwarfturn ? "dwarf" : "troll");
+
+    putchar('\n');
+    printf("%d Dwarf%s and %d Troll%s have been captured.\n",
+           board->dwarfscaptured, pl(board->dwarfscaptured),
+           board->trollscaptured, pl(board->trollscaptured));
+    printf("It is the %s player's turn\n",
+           board->isdwarfturn ? "Dwarf" : "Troll");
+
     fflush(stdout);
 }
 
@@ -624,34 +665,169 @@ int evaluate(struct thudboard * board)
            - board->dwarfclump;
 }
 
-bool legalmove(struct thudboard * board, struct move * play)
+bool legaldwarfmove(struct thudboard * board, struct move * move);
+bool legaltrollmove(struct thudboard * board, struct move * move);
+
+bool legalmove(struct thudboard * board, struct move * move)
 {
-    if (board->isdwarfturn != play->isdwarfmove) return false;
+    // board and move must agree on whose turn it is
+    if (board->isdwarfturn != move->isdwarfmove) return false;
+    // move source must be in bounds
+    else if (! inbounds(move->from)) return false;
+    // move target must be in bounds
+    else if (! inbounds(move->to)) return false;
+    // check move details
+    else if (move->isdwarfmove) return legaldwarfmove(board, move);
+    else return legaltrollmove(board, move);
+}
 
-    // stupid c
-    uint16_t * we = play->isdwarfmove ? board->dwarfs : board->trolls;
-    uint16_t * they = play->isdwarfmove ? board->trolls : board->dwarfs;
+int max(int a, int b)
+{
+    return a > b ? a : b;
+}
 
-    if (! get(we, play->from)) return false;
+int signum(int n)
+{
+    if (n > 0) return 1;
+    else if (n < 0) return -1;
+    else return 0;
+}
 
-    if (get(board->dwarfs, play->to)
-        || get(board->trolls, play->to)
-        || get(board->blocks, play->to)) return false;
+bool legaldwarfmove(struct thudboard * board, struct move * move)
+{
+    // moving dwarf must be present
+    if (! dwarfat(board, move->from)) return false;
 
-    for (int i=0; i < play->numcapts; ++i)
+    int dx = move->to.x - move->from.x;
+    int dy = move->to.y - move->from.y;
+    // can only move horizontal, vertical, or diagonal
+    if (dx == 0)
     {
-        if (! get(they, play->capts[i])) return false;
+        // move length must be non-zero
+        if (dy == 0) return false;
+    }
+    else if (dy != 0 && abs(dx) != abs(dy)) return false;
+
+    int dist = max(abs(dx), abs(dy));
+    int sx = signum(dx);
+    int sy = signum(dy);
+
+    // path must be clear
+    for (int i=1; i < dist; ++i)
+    {
+        struct coord cur = {move->from.x + sx * i,
+                            move->from.y + sy * i};
+        if (dwarfat(board, cur)
+            || trollat(board, cur)
+            || blockat(board, cur)) return false;
     }
 
-    //??? complete validation
+    if (move->numcapts)
+    {
+        // can only make one capture
+        if (move->numcapts > 1) return false;
+        // can only capture at move target
+        else if (move->capts[0].x != move->to.x
+                 || move->capts[0].y != move->to.y) return false;
+        // target troll must be present
+        else if (! trollat(board, move->capts[0])) return false;
+
+        // can only capture using throw line
+        for (int i=1; i < dist; ++i)
+        {
+            struct coord cur = {move->from.x - sx * i,
+                                move->from.y - sy * i};
+            if (! dwarfat(board, cur)) return false;
+        }
+    }
+    // if not capturing, target must be clear
+    else if (dwarfat(board, move->to)
+             || trollat(board, move->to)
+             || blockat(board, move->to)) return false;
 
     return true;
 }
 
-void domove(struct thudboard * board, struct move * play)
+bool adjacent(struct coord a, struct coord b)
 {
-    if (board->isdwarfturn) dodwarf(board, play);
-    else dotroll(board, play);
+    int dx = b.x - a.x;
+    int dy = b.y - a.y;
+
+    if (dx == 0 && dy == 0) return false;
+    else if (abs(dx) > 1 || abs(dy) > 1) return false;
+    else return true;
+}
+
+bool legaltrollmove(struct thudboard * board, struct move * move)
+{
+    // moving troll must be present
+    if (! trollat(board, move->from)) return false;
+
+    int dx = move->to.x - move->from.x;
+    int dy = move->to.y - move->from.y;
+
+    // move target must be clear
+    if (dwarfat(board, move->to)
+        || trollat(board, move->to)
+        || blockat(board, move->to)) return false;
+
+    if (move->numcapts)
+    {
+        int dist = max(abs(dx), abs(dy));
+        int sx = signum(dx);
+        int sy = signum(dy);
+
+        // move length must be non-zero
+        if (dist == 0) return false;
+
+        // distant captures require shoving line
+        for (int i=1; i < dist; ++i)
+        {
+            struct coord cur = {move->from.x - sx * i,
+                                move->from.y - sy * i};
+            if (! trollat(board, cur)) return false;
+        }
+
+        // check for buffer overrun
+        if (move->numcapts > NUMDIRS) return false;
+
+        for (int i=0; i < move->numcapts; ++i)
+        {
+            // capture targets must be unique
+            for (int j=0; j < i; ++j)
+            {
+                if (move->capts[i].x == move->capts[j].x
+                    && move->capts[i].y == move->capts[j].y) return false;
+            }
+
+            // capture targets must be in bounds
+            if (! inbounds(move->capts[i])) return false;
+
+            // capture targets must be adjacent
+            if (! adjacent(move->to, move->capts[i])) return false;
+
+            // target dwarfs must be present
+            if (! dwarfat(board, move->capts[i])) return false;
+        }
+    }
+    // if not shoving, can only move one space
+    else if (! adjacent(move->from, move->to)) return false;
+
+    return true;
+}
+
+void domoveforreal(struct thudboard * board, struct move * play)
+{
+    if (board->isdwarfturn)
+    {
+        dodwarf(board, play);
+        board->trollscaptured += play->numcapts;
+    }
+    else
+    {
+        dotroll(board, play);
+        board->dwarfscaptured += play->numcapts;
+    }
 }
 
 char * cols = "ABCDEFGHJKLMNOP";
@@ -757,7 +933,7 @@ retry:
     }
 
     move.numcapts = 0;
-    while (move.numcapts < NUMDIRS)
+    while (move.numcapts <= NUMDIRS)
     {
         skipspace(& cur);
         if (* cur == '\0') break;
@@ -859,9 +1035,11 @@ bool blockat(struct thudboard * board, struct coord pos)
     return get(board->blocks, pos);
 }
 
-uint16_t bit(int x)
+enum {HIGHBIT = 1 << (SIZE - 1)};
+
+bitrow_t bit(int x)
 {
-    return (uint16_t) 0x8000 >> x;
+    return (bitrow_t) HIGHBIT >> x;
 }
 
 bool get(bitboard bits, struct coord pos)
@@ -879,23 +1057,11 @@ void unset(bitboard bits, struct coord pos)
     bits[pos.y] &= ~ bit(pos.x);
 }
 
-/*
-int countbits(uint16_t bits)
-{
-    // from "Software Optimization Guide for AMD Athlon (tm) 64
-    //       and Opteron (tm) Processors"
-    unsigned int w = bits - ((bits >> 1) & 0x55555555);
-    unsigned int x = (w & 0x33333333) + ((w >> 2) & 0x33333333);
-    unsigned int c = ((x + (x >> 4) & 0x0f0f0f0f) * 0x01010101) >> 24;
-    return c;
-}
-*/
-
 bool hasneighbor(bitboard bits, struct coord pos)
 {
     for (int i=0; i < NUMDIRS; ++i)
     {
-        struct coord neighbor = {pos.x + DXS[i], pos.y + DYS[i]};
+        struct coord neighbor = {pos.x + DX[i], pos.y + DY[i]};
         if (inbounds(neighbor) && get(bits, neighbor)) return true;
     }
     return false;
@@ -906,7 +1072,7 @@ int countneighbors(bitboard bits, struct coord pos)
     int neighbors = 0;
     for (int i=0; i < NUMDIRS; ++i)
     {
-        struct coord neighbor = {pos.x + DXS[i], pos.y + DYS[i]};
+        struct coord neighbor = {pos.x + DX[i], pos.y + DY[i]};
         if (inbounds(neighbor)) neighbors += get(bits, neighbor);
     }
     return neighbors;
@@ -937,23 +1103,23 @@ bool inbounds(struct coord pos)
            && 0 <= pos.y && pos.y < SIZE;
 }
 
-uint64_t turnhash;
-uint64_t dwarfhash[SIZE*SIZE];
-uint64_t trollhash[SIZE*SIZE];
+hash_t turnhash;
+hash_t dwarfhash[SIZE*SIZE];
+hash_t trollhash[SIZE*SIZE];
 
-uint64_t random64(void)
+hash_t randomhash(void)
 {
-    return (uint64_t) random() << 32 | random();
+    return (hash_t) random() << 32 ^ random();
 }
 
 void inithash(void)
 {
-    turnhash = random64();
+    turnhash = randomhash();
 
     for (int i=0; i < SIZE*SIZE; ++i)
     {
-        dwarfhash[i] = random64();
-        trollhash[i] = random64();
+        dwarfhash[i] = randomhash();
+        trollhash[i] = randomhash();
     }
 }
 
@@ -980,7 +1146,7 @@ enum
 
 struct tableentry ttable[TTABLESIZE];
 
-int ttindex(uint64_t hash)
+int ttindex(hash_t hash)
 {
     return hash % TTABLESIZE;
 }
@@ -999,7 +1165,7 @@ void ttput(struct thudboard * board, int depth, int trmin, int dwmax)
     ttable[index] = temp;
 }
 
-struct tableentry * ttget(uint64_t hash)
+struct tableentry * ttget(hash_t hash)
 {
     int index = ttindex(hash);
 
