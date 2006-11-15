@@ -422,9 +422,9 @@ void setup(struct thudboard * board)
 
     board->isdwarfturn = true;
 
-    for (int x=0; x < SIZE; ++x)
+    for (int y=0; y < SIZE; ++y)
     {
-        for (int y=0; y < SIZE; ++y)
+        for (int x=0; x < SIZE; ++x)
         {
             switch (toupper(stdlayout[y][x]))
             {
