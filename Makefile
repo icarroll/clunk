@@ -1,7 +1,15 @@
 CFLAGS = -g -std=gnu99
 LDFLAGS = -lreadline
 
-.PHONY: all
-all: clunk
+TARGETS = clunk book
 
-clunk: clunk.c thudlib.o
+.PHONY: all
+all: $(TARGETS)
+
+.PHONY: clean
+clean:
+	rm $(TARGETS) *.o
+
+clunk: clunk.c thudlib.o ttable.o
+
+book: book.c thudlib.o

@@ -30,6 +30,8 @@ struct thudboard
     int trollscaptured;
 };
 
+struct thudboard board_data;
+
 struct coord
 {
     int x;
@@ -56,6 +58,8 @@ struct genstate
     struct move move;
 };
 
+static char * BOOKFILENAME = "thud.book";
+
 struct tableentry
 {
     hash_t hash;
@@ -63,6 +67,8 @@ struct tableentry
     int trmin;
     int dwmax;
 };
+
+void setupgame(struct thudboard * board, int memuse);
 
 void setupsides(void);
 struct move humanmove(struct thudboard * board);
@@ -117,10 +123,6 @@ void inithash(void);
 void hashturn(struct thudboard * board);
 void hashdwarf(struct thudboard * board, struct coord to);
 void hashtroll(struct thudboard * board, struct coord to);
-
-void initttable(int memuse);
-void ttput(struct thudboard * board, int depth, int trmin, int dwmax);
-struct tableentry * ttget(hash_t hash);
 
 typedef struct move movefunc_t(struct thudboard *);
 enum {DWARF, TROLL};

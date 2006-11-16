@@ -1,4 +1,5 @@
 #include "thudlib.h"
+#include "ttable.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,7 +8,6 @@
 #include <string.h>
 #include <limits.h>
 #include <ctype.h>
-#include <sys/mman.h>
 
 struct coord initpos = {-1,0};
 
@@ -33,12 +33,19 @@ char * stdlayout[] =
     "#####dd.dd#####",
 };
 
-struct move bestmove;
+void setupgame(struct thudboard * board, int memuse)
+{
+    inithash();
+    initttable(memuse);
+    setup(board);
+}
+
 struct move search(struct thudboard * board, int depth)
 {
     int trmin = INT_MIN;
     int dwmax = INT_MAX;
 
+    struct move bestmove;
     struct move move;
 
     struct genstate ctx;
@@ -818,78 +825,4 @@ bool inbounds(struct coord pos)
 {
     return 0 <= pos.x && pos.x < SIZE
            && 0 <= pos.y && pos.y < SIZE;
-}
-
-hash_t turnhash;
-hash_t dwarfhash[SIZE*SIZE];
-hash_t trollhash[SIZE*SIZE];
-
-hash_t randomhash(void)
-{
-    return (hash_t) random() << 32 ^ random();
-}
-
-void inithash(void)
-{
-    turnhash = randomhash();
-
-    for (int i=0; i < SIZE*SIZE; ++i)
-    {
-        dwarfhash[i] = randomhash();
-        trollhash[i] = randomhash();
-    }
-}
-
-void hashturn(struct thudboard * board)
-{
-    board->hash ^= turnhash;
-}
-
-void hashdwarf(struct thudboard * board, struct coord pos)
-{
-    board->hash ^= dwarfhash[pos.y*SIZE + pos.x];
-}
-
-void hashtroll(struct thudboard * board, struct coord pos)
-{
-    board->hash ^= trollhash[pos.y*SIZE + pos.x];
-}
-
-int TTABLESIZE;
-struct tableentry * ttable;
-
-int ttindex(hash_t hash)
-{
-    return hash % TTABLESIZE;
-}
-
-void initttable(int memuse)
-{
-    TTABLESIZE = memuse / sizeof(struct tableentry);
-
-    void * mem = mmap(NULL, memuse, PROT_READ | PROT_WRITE,
-                      MAP_ANON | MAP_PRIVATE, -1, 0);
-    ttable = (struct tableentry *) mem;
-}
-
-void ttput(struct thudboard * board, int depth, int trmin, int dwmax)
-{
-    int index = ttindex(board->hash);
-
-    struct tableentry temp =
-    {
-        board->hash,
-        depth,
-        trmin,
-        dwmax,
-    };
-    ttable[index] = temp;
-}
-
-struct tableentry * ttget(hash_t hash)
-{
-    int index = ttindex(hash);
-
-    if (ttable[index].hash == hash) return & (ttable[index]);
-    else return NULL;
 }

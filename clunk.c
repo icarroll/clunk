@@ -7,7 +7,6 @@
 
 movefunc_t * movefuncs[] = {computermove, computermove};
 
-struct thudboard board_data;
 int main(int numargs, char * args[])
 {
     struct thudboard * board = & board_data;
@@ -16,10 +15,7 @@ int main(int numargs, char * args[])
     int memuse = 1024 * 1024 * (numargs > 1 ? strtol(args[1], NULL, 10)
                                             : sizeof(struct tableentry));
 
-    //??? move to setupgame()
-    inithash();
-    initttable(memuse);
-    setup(board);
+    setupgame(board, memuse);
 
     setupsides();
 
