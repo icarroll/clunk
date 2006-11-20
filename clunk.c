@@ -3,7 +3,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <time.h>
 #include <readline/readline.h>
+
+enum {DEPTH = 4};
 
 movefunc_t * movefuncs[] = {computermove, computermove};
 
@@ -24,7 +27,10 @@ int main(int numargs, char * args[])
         putchar('\n');
         show(board);
 
+        time_t start = time(NULL);
         move = movefuncs[board->isdwarfturn ? DWARF : TROLL](board);
+        time_t elapsed = time(NULL) - start;
+        printf("Thinking took %d second%s.\n", elapsed, pl(elapsed));
         domoveforreal(board, & move);
     }
 }
@@ -67,7 +73,7 @@ struct move computermove(struct thudboard * board)
 
     puts("Thinking...");
     fflush(stdout);
-    move = search(board, 4);
+    move = search(board, DEPTH);
     showmove(& move);
 
     return move;

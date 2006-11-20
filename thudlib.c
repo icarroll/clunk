@@ -154,31 +154,37 @@ int dwarfsearch(struct thudboard * board, int depth, int trmin, int dwmax)
     return dwmax;
 }
 
-/* ???
-struct sortref
+/*
+enum {HEAPLIMIT = 8};
+
+struct scoredmove
 {
     int score;
-    int index;
+    struct move move;
 };
 
-enum {MAXHEAP = 8};
-
-struct heap
+struct moveheap
 {
     int size;
-    struct sortref refs[MAXHEAP];
-    struct move moves[MAXHEAP];
+    struct scoredmove moves[HEAPLIMIT];
 };
 
-void heappush(struct heap * heap, int score, struct move move)
+void insert(struct moveheap * heap, int score, struct move move)
 {
+    heap->moves[heap->size] = {score, move};
     heap->size += 1;
-    heap->refs[heap->size] = sortref(score, foo);
-    heap->moves[heap->size] = move;
+    FROB(heap); //???
 }
 
-struct move heappop(struct heap * heap)
+struct move pop(struct moveheap * heap)
 {
+    struct move move = heap->moves[0].move;
+
+    heap->size -= 1;
+    heap->moves[0] = heap->moves[heap->size];
+    FROB(heap); //???
+
+    return move;
 }
 */
 

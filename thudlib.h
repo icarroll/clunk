@@ -102,6 +102,7 @@ bool blockat(struct thudboard * board, struct coord pos);
 
 void erase(struct thudboard * board);
 void setup(struct thudboard * board);
+char * pl(int n);
 void show(struct thudboard * board);
 int evaluate(struct thudboard * board);
 bool legalmove(struct thudboard * board, struct move * move);
@@ -127,4 +128,4 @@ void hashtroll(struct thudboard * board, struct coord to);
 typedef struct move movefunc_t(struct thudboard *);
 enum {DWARF, TROLL};
 
-#endif THUDLIB_H
+#endif //THUDLIB_H
