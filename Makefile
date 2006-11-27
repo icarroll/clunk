@@ -10,6 +10,6 @@ all: $(TARGETS)
 clean:
 	rm $(TARGETS) *.o
 
-clunk: clunk.c thudlib.o ttable.o
+clunk: clunk.c thudlib.o ttable.o heap.o list.o
 
-book: book.c thudlib.o
+book: book.c thudlib.o heap.o list.o

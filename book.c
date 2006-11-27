@@ -1,3 +1,4 @@
+#include "ttable.h"
 #include "thudlib.h"
 
 #include <stdio.h>
@@ -7,6 +8,8 @@ FILE * book;
 
 int TTABLESIZE;
 struct tableentry * ttable;
+
+struct thudboard board_data;
 
 int main(int numargs, char * args[])
 {

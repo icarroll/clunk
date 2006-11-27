@@ -1,3 +1,4 @@
+#include "ttable.h"
 #include "thudlib.h"
 
 #include <stdio.h>
@@ -8,7 +9,12 @@
 
 enum {DEPTH = 4};
 
+enum {DWARF, TROLL};
+
+typedef struct move movefunc_t(struct thudboard *);
 movefunc_t * movefuncs[] = {computermove, computermove};
+
+struct thudboard board_data;
 
 int main(int numargs, char * args[])
 {

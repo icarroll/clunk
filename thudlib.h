@@ -1,53 +1,12 @@
 #ifndef THUDLIB_H
 #define THUDLIB_H
 
-#include <stdint.h>
+#include "heap.h"
+#include "list.h"
+#include "board.h"
+#include "move.h"
+
 #include <stdbool.h>
-
-enum {SIZE = 15};
-
-typedef uint16_t bitrow_t;
-typedef bitrow_t bitboard[SIZE];
-
-typedef uint64_t hash_t;
-
-struct thudboard
-{
-    bool isdwarfturn;
-
-    bitboard dwarfs;
-    bitboard trolls;
-    bitboard blocks;
-
-    int numdwarfs;
-    int numtrolls;
-
-    int dwarfclump;
-
-    hash_t hash;
-
-    int dwarfscaptured;
-    int trollscaptured;
-};
-
-struct thudboard board_data;
-
-struct coord
-{
-    int x;
-    int y;
-};
-
-enum {NUMDIRS = 8};
-
-struct move
-{
-    bool isdwarfmove;
-    struct coord from;
-    struct coord to;
-    int numcapts;
-    struct coord capts[NUMDIRS];
-};
 
 struct genstate
 {
@@ -58,15 +17,9 @@ struct genstate
     struct move move;
 };
 
-static char * BOOKFILENAME = "thud.book";
+typedef struct move movegen_t(struct thudboard *, struct genstate *);
 
-struct tableentry
-{
-    hash_t hash;
-    int depth;
-    int trmin;
-    int dwmax;
-};
+static char * BOOKFILENAME = "thud.book";
 
 void setupgame(struct thudboard * board, int memuse);
 
@@ -76,8 +29,12 @@ struct move computermove(struct thudboard * board);
 struct move getmove(char * prompt);
 
 struct move search(struct thudboard * board, int depth);
+struct moveheap revheapof(struct thudboard * board, struct movelist * list);
+struct moveheap heapof(struct thudboard * board, struct movelist * list);
+struct moveheap allmoves(struct thudboard * board, movegen_t nextmove);
 
 int dwarfsearch(struct thudboard * board, int depth, int trmin, int dwmax);
+struct movelist alldwarfmoves(struct thudboard * board);
 struct move nextdwarfplay(struct thudboard * board, struct genstate * ctx);
 void dodwarf(struct thudboard * board, struct move * move);
 void undodwarf(struct thudboard * board, struct move * move);
@@ -89,6 +46,8 @@ bool dwarfat(struct thudboard * board, struct coord pos);
 void captdwarfs(struct thudboard * board, int num, struct coord * froms);
 
 int trollsearch(struct thudboard * board, int depth, int trmin, int dwmax);
+struct movelist alltrollmoves(struct thudboard * board);
+int counttrollcapts(struct thudboard * board);
 struct move nexttrollplay(struct thudboard * board, struct genstate * ctx);
 void dotroll(struct thudboard * board, struct move * move);
 void undotroll(struct thudboard * board, struct move * move);
@@ -106,6 +65,8 @@ char * pl(int n);
 void show(struct thudboard * board);
 int evaluate(struct thudboard * board);
 bool legalmove(struct thudboard * board, struct move * move);
+void domove(struct thudboard * board, struct move * move);
+void undomove(struct thudboard * board, struct move * move);
 void domoveforreal(struct thudboard * board, struct move * move);
 void showpos(struct coord pos);
 void showmove(struct move * move);
@@ -116,6 +77,7 @@ void unset(bitboard bits, struct coord pos);
 bool hasneighbor(bitboard bits, struct coord pos);
 int countneighbors(bitboard bits, struct coord pos);
 struct coord nextpos(bitboard bits, struct coord);
+void erasebits(bitboard bits);
 
 struct coord coord(int x, int y);
 bool inbounds(struct coord);
@@ -125,7 +87,4 @@ void hashturn(struct thudboard * board);
 void hashdwarf(struct thudboard * board, struct coord to);
 void hashtroll(struct thudboard * board, struct coord to);
 
-typedef struct move movefunc_t(struct thudboard *);
-enum {DWARF, TROLL};
-
-#endif //THUDLIB_H
+#endif // THUDLIB_H
