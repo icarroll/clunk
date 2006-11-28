@@ -9,6 +9,11 @@
 
 enum {DEPTH = 4};
 
+void setupsides(void);
+struct move humanmove(struct thudboard * board);
+struct move computermove(struct thudboard * board);
+struct move getmove(char * prompt);
+
 enum {DWARF, TROLL};
 
 typedef struct move movefunc_t(struct thudboard *);

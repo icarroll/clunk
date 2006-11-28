@@ -51,7 +51,7 @@ struct move search(struct thudboard * board, int depth)
     if (board->isdwarfturn)
     {
         struct movelist list = alldwarfmoves(board);
-        struct moveheap queue = revheapof(board, & list);
+        struct moveheap queue = heapof(board, & list);
 
         while (queue.used > 0)
         {
@@ -124,25 +124,6 @@ struct move search(struct thudboard * board, int depth)
     return bestmove;
 }
 
-struct moveheap revheapof(struct thudboard * board, struct movelist * list)
-{
-    struct moveheap heap;
-    initheap(& heap);
-
-    for (int i=0; i < list->used; ++i)
-    {
-        struct move * move = & (list->moves[i]);
-
-        domove(board, move);
-        int score = evaluate(board);
-        undomove(board, move);
-
-        insert(& heap, -score, move);   // invert score
-    }
-
-    return heap;
-}
-
 struct moveheap heapof(struct thudboard * board, struct movelist * list)
 {
     struct moveheap heap;
@@ -154,6 +135,7 @@ struct moveheap heapof(struct thudboard * board, struct movelist * list)
 
         domove(board, move);
         int score = evaluate(board);
+        if (board->isdwarfturn) score *= -1;
         undomove(board, move);
 
         insert(& heap, score, move);
@@ -190,7 +172,7 @@ int dwarfsearch(struct thudboard * board, int depth, int trmin, int dwmax)
     if (depth < 1) return evaluate(board);
 
     struct movelist list = alldwarfmoves(board);
-    struct moveheap queue = revheapof(board, & list);
+    struct moveheap queue = heapof(board, & list);
 
     while (queue.used > 0)
     {

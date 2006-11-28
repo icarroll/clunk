@@ -23,13 +23,7 @@ static char * BOOKFILENAME = "thud.book";
 
 void setupgame(struct thudboard * board, int memuse);
 
-void setupsides(void);
-struct move humanmove(struct thudboard * board);
-struct move computermove(struct thudboard * board);
-struct move getmove(char * prompt);
-
 struct move search(struct thudboard * board, int depth);
-struct moveheap revheapof(struct thudboard * board, struct movelist * list);
 struct moveheap heapof(struct thudboard * board, struct movelist * list);
 struct moveheap allmoves(struct thudboard * board, movegen_t nextmove);
 

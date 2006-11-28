@@ -2,6 +2,7 @@ CFLAGS = -g -std=gnu99
 LDFLAGS = -lreadline
 
 TARGETS = clunk book
+OBJS = thudlib.o heap.o list.o
 
 .PHONY: all
 all: $(TARGETS)
@@ -10,6 +11,6 @@ all: $(TARGETS)
 clean:
 	rm $(TARGETS) *.o
 
-clunk: clunk.c thudlib.o ttable.o heap.o list.o
+clunk: clunk.c $(OBJS) ttable.o
 
-book: book.c thudlib.o heap.o list.o
+book: book.c $(OBJS)
