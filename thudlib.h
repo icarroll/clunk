@@ -73,7 +73,6 @@ int countneighbors(bitboard bits, struct coord pos);
 struct coord nextpos(bitboard bits, struct coord);
 void erasebits(bitboard bits);
 
-struct coord coord(int x, int y);
 bool inbounds(struct coord);
 
 void inithash(void);

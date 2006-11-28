@@ -606,13 +606,13 @@ void setup(struct thudboard * board)
             switch (toupper(stdlayout[y][x]))
             {
             case 'D':
-                placedwarf(board, coord(x,y));
+                placedwarf(board, (struct coord) {x,y});
                 break;
             case 'T':
-                placetroll(board, coord(x,y));
+                placetroll(board, (struct coord) {x,y});
                 break;
             case '#':
-                set(board->blocks, coord(x,y));
+                set(board->blocks, (struct coord) {x,y});
                 break;
             case '.':
                 break;
@@ -639,9 +639,9 @@ void show(struct thudboard * board)
         {
             putchar(' ');
 
-            if (dwarfat(board, coord(x,y))) putchar('d');
-            else if (trollat(board, coord(x,y))) putchar('T');
-            else if (blockat(board, coord(x,y))) putchar('#');
+            if (dwarfat(board, (struct coord) {x,y})) putchar('d');
+            else if (trollat(board, (struct coord) {x,y})) putchar('T');
+            else if (blockat(board, (struct coord) {x,y})) putchar('#');
             else putchar('.');
         }
         putchar('\n');
@@ -984,7 +984,7 @@ struct coord nextpos(bitboard bits, struct coord cur)
 
     for (int i=cur.y*SIZE+cur.x; i < SIZE*SIZE; ++i)
     {
-        struct coord pos = coord(i % SIZE, i / SIZE);
+        struct coord pos = (struct coord) {i % SIZE, i / SIZE};
         if (get(bits, pos)) return pos;
     }
 
@@ -994,12 +994,6 @@ struct coord nextpos(bitboard bits, struct coord cur)
 void erasebits(bitboard bits)
 {
     memset(bits, 0, sizeof(bitboard));
-}
-
-struct coord coord(int x, int y)
-{
-    struct coord p = {x,y};
-    return p;
 }
 
 bool inbounds(struct coord pos)
