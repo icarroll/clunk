@@ -74,16 +74,9 @@ void initttable(int memuse)
     }
 }
 
-void ttput(struct thudboard * board, int depth, int trmin, int dwmax)
+void ttput(struct tableentry entry)
 {
-    struct tableentry temp =
-    {
-        board->hash,
-        depth,
-        trmin,
-        dwmax,
-    };
-    ttable[ttindex(board->hash)] = temp;
+    ttable[ttindex(entry.hash)] = entry;
 }
 
 struct tableentry * ttget(hash_t hash)

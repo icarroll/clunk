@@ -64,12 +64,13 @@ struct move search(struct thudboard * board, int depth)
             struct tableentry * entry = ttget(board->hash);
             if (entry && entry->depth >= depth-1)
             {
-                result = entry->dwmax;
+                result = entry->score;
             }
             else
             {
                 result = trollsearch(board, depth-1, trmin, dwmax);
-                ttput(board, depth-1, trmin, result);
+                ttput((struct tableentry)
+                      {board->hash, depth-1, result, trmin, dwmax});
             }
 
             if (result < dwmax)
@@ -100,12 +101,13 @@ struct move search(struct thudboard * board, int depth)
             struct tableentry * entry = ttget(board->hash);
             if (entry && entry->depth > depth)
             {
-                result = entry->trmin;
+                result = entry->score;
             }
             else
             {
                 result = dwarfsearch(board, depth-1, trmin, dwmax);
-                ttput(board, depth-1, result, dwmax);
+                ttput((struct tableentry)
+                      {board->hash, depth-1, result, trmin, dwmax});
             }
 
             if (result > trmin)
@@ -144,27 +146,9 @@ struct moveheap heapof(struct thudboard * board, struct movelist * list)
     return heap;
 }
 
-struct moveheap allmoves(struct thudboard * board, movegen_t nextmove)
+static bool occupied(struct thudboard * board, struct coord pos)
 {
-    struct moveheap moves;
-    initheap(& moves);
-
-    struct genstate ctx;
-    ctx.resume = NULL;
-
-    while (true)
-    {
-        struct move move = nextmove(board, & ctx);
-        if (! ctx.resume) break;
-
-        domove(board, & move);
-        int score = evaluate(board);
-        undomove(board, & move);
-
-        insert(& moves, score, & move);
-    }
-
-    return moves;
+    return dwarfat(board, pos) || trollat(board, pos) || blockat(board, pos);
 }
 
 int dwarfsearch(struct thudboard * board, int depth, int trmin, int dwmax)
@@ -185,12 +169,13 @@ int dwarfsearch(struct thudboard * board, int depth, int trmin, int dwmax)
         struct tableentry * entry = ttget(board->hash);
         if (entry && entry->depth > depth)
         {
-            result = entry->dwmax;
+            result = entry->score;
         }
         else
         {
             result = trollsearch(board, depth-1, trmin, dwmax);
-            ttput(board, depth-1, trmin, result);
+            ttput((struct tableentry)
+                  {board->hash, depth-1, result, trmin, dwmax});
         }
 
         if (result < dwmax) dwmax = result;
@@ -208,11 +193,6 @@ int dwarfsearch(struct thudboard * board, int depth, int trmin, int dwmax)
     closeheap(& queue);
     closelist(& list);
     return dwmax;
-}
-
-bool occupied(struct thudboard * board, struct coord pos)
-{
-    return dwarfat(board, pos) || trollat(board, pos) || blockat(board, pos);
 }
 
 struct movelist alldwarfmoves(struct thudboard * board)
@@ -281,84 +261,6 @@ struct movelist alldwarfmoves(struct thudboard * board)
     return moves;
 }
 
-struct move nextdwarfplay(struct thudboard * board, struct genstate * ctx)
-{
-    if (ctx->resume) goto * ctx->resume;
-
-    ctx->move.isdwarfmove = true;
-
-    // generate attacks
-    ctx->move.numcapts = 1;
-    ctx->move.from = initpos;
-    while (true)
-    {
-        ctx->move.from = nextpos(board->dwarfs, ctx->move.from);
-        if (ctx->move.from.x == -1) break;
-
-        for (ctx->dir = 0; ctx->dir < NUMDIRS; ++ctx->dir)
-        {
-            ctx->dx = DX[ctx->dir];
-            ctx->dy = DY[ctx->dir];
-
-            for (ctx->dist = 1; ctx->dist < SIZE ; ++ctx->dist)
-            {
-                ctx->move.to.x = ctx->move.from.x + ctx->dx * ctx->dist;
-                ctx->move.to.y = ctx->move.from.y + ctx->dy * ctx->dist;
-                if (! inbounds(ctx->move.to)) break;
-
-                if (dwarfat(board, ctx->move.to)
-                    || blockat(board, ctx->move.to)) break;
-
-                struct coord check;
-                check.x = ctx->move.from.x - ctx->dx * (ctx->dist-1);
-                check.y = ctx->move.from.y - ctx->dy * (ctx->dist-1);
-                if (! inbounds(check) || ! dwarfat(board, check)) break;
-
-                if (trollat(board, ctx->move.to))
-                {
-                    ctx->move.capts[0] = ctx->move.to;
-
-                    ctx->resume = && dwarfresume1;
-                    return ctx->move;
-dwarfresume1:
-                    break;
-                }
-            }
-        }
-    }
-
-    // generate moves
-    ctx->move.numcapts = 0;
-    ctx->move.from = initpos;
-    while (true)
-    {
-        ctx->move.from = nextpos(board->dwarfs, ctx->move.from);
-        if (ctx->move.from.x == -1) break;
-
-        for (ctx->dir = 0; ctx->dir < NUMDIRS; ++ctx->dir)
-        {
-            ctx->dx = DX[ctx->dir];
-            ctx->dy = DY[ctx->dir];
-
-            for (ctx->dist = 1; ctx->dist < SIZE ; ++ctx->dist)
-            {
-                ctx->move.to.x = ctx->move.from.x + ctx->dx * ctx->dist;
-                ctx->move.to.y = ctx->move.from.y + ctx->dy * ctx->dist;
-                if (! inbounds(ctx->move.to)) break;
-
-                if (occupied(board, ctx->move.to)) break;
-
-                ctx->resume = && dwarfresume2;
-                return ctx->move;
-dwarfresume2:
-                continue;
-            }
-        }
-    }
-
-    ctx->resume = NULL;
-}
-
 void dodwarf(struct thudboard * board, struct move * move)
 {
     if (move->numcapts > 0) capttroll(board, move->capts[0]);
@@ -393,12 +295,13 @@ int trollsearch(struct thudboard * board, int depth, int trmin, int dwmax)
         struct tableentry * entry = ttget(board->hash);
         if (entry && entry->depth > depth)
         {
-            result = entry->trmin;
+            result = entry->score;
         }
         else
         {
             result = dwarfsearch(board, depth-1, trmin, dwmax);
-            ttput(board, depth-1, result, dwmax);
+            ttput((struct tableentry)
+                  {board->hash, depth-1, result, trmin, dwmax});
         }
 
         if (result > trmin) trmin = result;
@@ -487,89 +390,6 @@ struct movelist alltrollmoves(struct thudboard * board)
     }
 
     return moves;
-}
-
-struct move nexttrollplay(struct thudboard * board, struct genstate * ctx)
-{
-    if (ctx->resume) goto * ctx->resume;
-
-    ctx->move.isdwarfmove = false;
-
-    // generate attacks
-    ctx->move.from = initpos;
-    while (true)
-    {
-        ctx->move.from = nextpos(board->trolls, ctx->move.from);
-        if (ctx->move.from.x == -1) break;
-
-        for (ctx->dir = 0; ctx->dir < NUMDIRS; ++ctx->dir)
-        {
-            ctx->dx = DX[ctx->dir];
-            ctx->dy = DY[ctx->dir];
-
-            for (ctx->dist = 1; ctx->dist < SIZE ; ++ctx->dist)
-            {
-                ctx->move.to.x = ctx->move.from.x + ctx->dx * ctx->dist;
-                ctx->move.to.y = ctx->move.from.y + ctx->dy * ctx->dist;
-                if (! inbounds(ctx->move.to)) break;
-
-                if (occupied(board, ctx->move.to)) break;
-
-                struct coord check;
-                check.x = ctx->move.from.x - ctx->dx * (ctx->dist-1);
-                check.y = ctx->move.from.y - ctx->dy * (ctx->dist-1);
-                if (! inbounds(check) || ! trollat(board, check)) break;
-
-                if (hasneighbor(board->dwarfs, ctx->move.to))
-                {
-                    ctx->move.numcapts = 0;
-                    for (int i=0; i < NUMDIRS; ++i)
-                    {
-                        struct coord capt = {ctx->move.to.x + DX[i],
-                                             ctx->move.to.y + DY[i]};
-                        if (inbounds(capt) && dwarfat(board, capt))
-                        {
-                            ctx->move.capts[ctx->move.numcapts++] = capt;
-                        }
-                    }
-
-                    ctx->resume = && trollresume1;
-                    return ctx->move;
-trollresume1:
-                    continue;
-                }
-            }
-        }
-    }
-
-    // generate moves
-    ctx->move.numcapts = 0;
-    ctx->move.from = initpos;
-    while (true)
-    {
-        ctx->move.from = nextpos(board->trolls, ctx->move.from);
-        if (ctx->move.from.x == -1) break;
-
-        for (ctx->dir = 0; ctx->dir < NUMDIRS; ++ctx->dir)
-        {
-            ctx->dx = DX[ctx->dir];
-            ctx->dy = DY[ctx->dir];
-
-            ctx->move.to.x = ctx->move.from.x + ctx->dx;
-            ctx->move.to.y = ctx->move.from.y + ctx->dy;
-
-            if (! inbounds(ctx->move.to)) continue;
-
-            if (occupied(board, ctx->move.to)) break;
-
-            ctx->resume = && trollresume2;
-            return ctx->move;
-trollresume2:
-            continue;
-        }
-    }
-
-    ctx->resume = NULL;
 }
 
 void dotroll(struct thudboard * board, struct move * move)
@@ -664,9 +484,6 @@ int evaluate(struct thudboard * board)
            - board->dwarfclump;
 }
 
-bool legaldwarfmove(struct thudboard * board, struct move * move);
-bool legaltrollmove(struct thudboard * board, struct move * move);
-
 bool legalmove(struct thudboard * board, struct move * move)
 {
     // board and move must agree on whose turn it is
@@ -680,12 +497,12 @@ bool legalmove(struct thudboard * board, struct move * move)
     else return legaltrollmove(board, move);
 }
 
-int max(int a, int b)
+static int max(int a, int b)
 {
     return a > b ? a : b;
 }
 
-int signum(int n)
+static int signum(int n)
 {
     if (n > 0) return 1;
     else if (n < 0) return -1;
@@ -743,7 +560,7 @@ bool legaldwarfmove(struct thudboard * board, struct move * move)
     return true;
 }
 
-bool adjacent(struct coord a, struct coord b)
+static bool adjacent(struct coord a, struct coord b)
 {
     int dx = b.x - a.x;
     int dy = b.y - a.y;
@@ -821,7 +638,7 @@ void undomove(struct thudboard * board, struct move * move)
     else undodwarf(board, move);
 }
 
-void domoveforreal(struct thudboard * board, struct move * move)
+void domoveupdatecapts(struct thudboard * board, struct move * move)
 {
     if (board->isdwarfturn)
     {

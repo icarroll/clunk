@@ -8,28 +8,15 @@
 
 #include <stdbool.h>
 
-struct genstate
-{
-    void * resume;
-    int dx,dy;
-    int dir;
-    int dist;
-    struct move move;
-};
-
-typedef struct move movegen_t(struct thudboard *, struct genstate *);
-
 static char * BOOKFILENAME = "thud.book";
 
 void setupgame(struct thudboard * board, int memuse);
 
 struct move search(struct thudboard * board, int depth);
 struct moveheap heapof(struct thudboard * board, struct movelist * list);
-struct moveheap allmoves(struct thudboard * board, movegen_t nextmove);
 
 int dwarfsearch(struct thudboard * board, int depth, int trmin, int dwmax);
 struct movelist alldwarfmoves(struct thudboard * board);
-struct move nextdwarfplay(struct thudboard * board, struct genstate * ctx);
 void dodwarf(struct thudboard * board, struct move * move);
 void undodwarf(struct thudboard * board, struct move * move);
 
@@ -42,7 +29,6 @@ void captdwarfs(struct thudboard * board, int num, struct coord * froms);
 int trollsearch(struct thudboard * board, int depth, int trmin, int dwmax);
 struct movelist alltrollmoves(struct thudboard * board);
 int counttrollcapts(struct thudboard * board);
-struct move nexttrollplay(struct thudboard * board, struct genstate * ctx);
 void dotroll(struct thudboard * board, struct move * move);
 void undotroll(struct thudboard * board, struct move * move);
 
@@ -59,9 +45,11 @@ char * pl(int n);
 void show(struct thudboard * board);
 int evaluate(struct thudboard * board);
 bool legalmove(struct thudboard * board, struct move * move);
+bool legaldwarfmove(struct thudboard * board, struct move * move);
+bool legaltrollmove(struct thudboard * board, struct move * move);
 void domove(struct thudboard * board, struct move * move);
 void undomove(struct thudboard * board, struct move * move);
-void domoveforreal(struct thudboard * board, struct move * move);
+void domoveupdatecapts(struct thudboard * board, struct move * move);
 void showpos(struct coord pos);
 void showmove(struct move * move);
 

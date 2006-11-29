@@ -42,7 +42,7 @@ int main(int numargs, char * args[])
         move = movefuncs[board->isdwarfturn ? DWARF : TROLL](board);
         time_t elapsed = time(NULL) - start;
         printf("Thinking took %d second%s.\n", elapsed, pl(elapsed));
-        domoveforreal(board, & move);
+        domoveupdatecapts(board, & move);
     }
 }
 

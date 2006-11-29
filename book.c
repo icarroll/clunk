@@ -88,20 +88,13 @@ int ttindex(hash_t hash)
     return hash % TTABLESIZE;
 }
 
-void ttput(struct thudboard * board, int depth, int trmin, int dwmax)
+void ttput(struct tableentry entry)
 {
-    int index = ttindex(board->hash);
+    int index = ttindex(entry.hash);
 
-    if (ttable[index].depth > depth) return;
+    if (ttable[index].depth > entry.depth) return;
 
-    struct tableentry temp =
-    {
-        board->hash,
-        depth,
-        trmin,
-        dwmax,
-    };
-    ttable[index] = temp;
+    ttable[index] = entry;
 }
 
 struct tableentry * ttget(hash_t hash)
