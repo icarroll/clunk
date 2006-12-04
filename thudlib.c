@@ -42,11 +42,21 @@ void setupgame(struct thudboard * board, int memuse)
 
 struct move search(struct thudboard * board, int depth)
 {
-    int trmin = INT_MIN;
-    int dwmax = INT_MAX;
-
     struct move bestmove;
+
+    absearch(board, depth, INT_MIN, INT_MAX, & bestmove);
+
+    return bestmove;
+}
+
+int absearch(struct thudboard * board, int depth, int trmin, int dwmax,
+            struct move * bestmove)
+{
+    if (depth < 1) return evaluate(board);
+
     struct move * move;
+
+    int nextdepth = depth - 1;
 
     if (board->isdwarfturn)
     {
@@ -62,28 +72,37 @@ struct move search(struct thudboard * board, int depth)
             int result;
 
             struct tableentry * entry = ttget(board->hash);
-            if (entry && entry->depth >= depth-1)
+            if (entry && entry->depth >= nextdepth)
             {
+                //??? check window
                 result = entry->score;
             }
             else
             {
-                result = trollsearch(board, depth-1, trmin, dwmax);
-                ttput((struct tableentry)
-                      {board->hash, depth-1, result, trmin, dwmax});
+                result = absearch(board, nextdepth, trmin, dwmax, NULL);
+                if (nextdepth > 0) ttput((struct tableentry)
+                    {board->hash, nextdepth, result, trmin, dwmax});
             }
 
             if (result < dwmax)
             {
                 dwmax = result;
-                bestmove = * move;
+                if (bestmove) * bestmove = * move;
             }
 
             undodwarf(board, move);
+
+            if (trmin >= dwmax)
+            {
+                closeheap(& queue);
+                closelist(& list);
+                return trmin;
+            }
         }
 
         closeheap(& queue);
         closelist(& list);
+        return dwmax;
     }
     else
     {
@@ -99,31 +118,37 @@ struct move search(struct thudboard * board, int depth)
             int result;
 
             struct tableentry * entry = ttget(board->hash);
-            if (entry && entry->depth > depth)
+            if (entry && entry->depth > nextdepth)
             {
                 result = entry->score;
             }
             else
             {
-                result = dwarfsearch(board, depth-1, trmin, dwmax);
+                result = absearch(board, nextdepth, trmin, dwmax, NULL);
                 ttput((struct tableentry)
-                      {board->hash, depth-1, result, trmin, dwmax});
+                      {board->hash, nextdepth, result, trmin, dwmax});
             }
 
             if (result > trmin)
             {
                 trmin = result;
-                bestmove = * move;
+                if (bestmove) * bestmove = * move;
             }
 
             undotroll(board, move);
+
+            if (trmin >= dwmax)
+            {
+                closeheap(& queue);
+                closelist(& list);
+                return dwmax;
+            }
         }
 
         closeheap(& queue);
         closelist(& list);
+        return trmin;
     }
-
-    return bestmove;
 }
 
 struct moveheap heapof(struct thudboard * board, struct movelist * list)
@@ -136,8 +161,11 @@ struct moveheap heapof(struct thudboard * board, struct movelist * list)
         struct move * move = & (list->moves[i]);
 
         domove(board, move);
-        int score = evaluate(board);
+
+        struct tableentry * entry = ttget(board->hash);
+        int score = entry ? entry->score : evaluate(board);
         if (board->isdwarfturn) score *= -1;
+
         undomove(board, move);
 
         insert(& heap, score, move);
@@ -149,50 +177,6 @@ struct moveheap heapof(struct thudboard * board, struct movelist * list)
 static bool occupied(struct thudboard * board, struct coord pos)
 {
     return dwarfat(board, pos) || trollat(board, pos) || blockat(board, pos);
-}
-
-int dwarfsearch(struct thudboard * board, int depth, int trmin, int dwmax)
-{
-    if (depth < 1) return evaluate(board);
-
-    struct movelist list = alldwarfmoves(board);
-    struct moveheap queue = heapof(board, & list);
-
-    while (queue.used > 0)
-    {
-        struct move * move = pop(& queue);
-
-        dodwarf(board, move);
-
-        int result;
-
-        struct tableentry * entry = ttget(board->hash);
-        if (entry && entry->depth > depth)
-        {
-            result = entry->score;
-        }
-        else
-        {
-            result = trollsearch(board, depth-1, trmin, dwmax);
-            ttput((struct tableentry)
-                  {board->hash, depth-1, result, trmin, dwmax});
-        }
-
-        if (result < dwmax) dwmax = result;
-
-        undodwarf(board, move);
-
-        if (trmin >= dwmax)
-        {
-            closeheap(& queue);
-            closelist(& list);
-            return trmin;
-        }
-    }
-
-    closeheap(& queue);
-    closelist(& list);
-    return dwmax;
 }
 
 struct movelist alldwarfmoves(struct thudboard * board)
@@ -275,50 +259,6 @@ void undodwarf(struct thudboard * board, struct move * move)
     if (move->numcapts > 0) placetroll(board, move->capts[0]);
     board->isdwarfturn = true;
     hashturn(board);
-}
-
-int trollsearch(struct thudboard * board, int depth, int trmin, int dwmax)
-{
-    if (depth < 1) return evaluate(board);
-
-    struct movelist list = alltrollmoves(board);
-    struct moveheap queue = heapof(board, & list);
-
-    while (queue.used > 0)
-    {
-        struct move * move = pop(& queue);
-
-        dotroll(board, move);
-
-        int result;
-
-        struct tableentry * entry = ttget(board->hash);
-        if (entry && entry->depth > depth)
-        {
-            result = entry->score;
-        }
-        else
-        {
-            result = dwarfsearch(board, depth-1, trmin, dwmax);
-            ttput((struct tableentry)
-                  {board->hash, depth-1, result, trmin, dwmax});
-        }
-
-        if (result > trmin) trmin = result;
-
-        undotroll(board, move);
-
-        if (trmin >= dwmax)
-        {
-            closeheap(& queue);
-            closelist(& list);
-            return dwmax;
-        }
-    }
-
-    closeheap(& queue);
-    closelist(& list);
-    return trmin;
 }
 
 struct movelist alltrollmoves(struct thudboard * board)
@@ -478,6 +418,13 @@ void show(struct thudboard * board)
 }
 
 int evaluate(struct thudboard * board)
+{
+    struct tableentry * entry = ttget(board->hash);
+    if (entry) return entry->score;
+    else return heuristic(board);
+}
+
+int heuristic(struct thudboard * board)
 {
     return 4000 * board->numtrolls
            - 1000 * board->numdwarfs

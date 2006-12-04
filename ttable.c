@@ -74,15 +74,18 @@ void initttable(int memuse)
     }
 }
 
-void ttput(struct tableentry entry)
+void ttput(struct tableentry newentry)
 {
-    ttable[ttindex(entry.hash)] = entry;
+    int index = ttindex(newentry.hash);
+    struct tableentry * entry = & ttable[index];
+
+    * entry = newentry;
 }
 
 struct tableentry * ttget(hash_t hash)
 {
     int index = ttindex(hash);
 
-    if (ttable[index].hash == hash) return & (ttable[index]);
+    if (ttable[index].hash == hash) return & ttable[index];
     else return NULL;
 }

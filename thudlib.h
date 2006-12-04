@@ -13,9 +13,10 @@ static char * BOOKFILENAME = "thud.book";
 void setupgame(struct thudboard * board, int memuse);
 
 struct move search(struct thudboard * board, int depth);
+int absearch(struct thudboard * board, int depth, int trmin, int dwmax,
+            struct move * bestmove);
 struct moveheap heapof(struct thudboard * board, struct movelist * list);
 
-int dwarfsearch(struct thudboard * board, int depth, int trmin, int dwmax);
 struct movelist alldwarfmoves(struct thudboard * board);
 void dodwarf(struct thudboard * board, struct move * move);
 void undodwarf(struct thudboard * board, struct move * move);
@@ -26,7 +27,6 @@ void movedwarf(struct thudboard * board, struct coord from, struct coord to);
 bool dwarfat(struct thudboard * board, struct coord pos);
 void captdwarfs(struct thudboard * board, int num, struct coord * froms);
 
-int trollsearch(struct thudboard * board, int depth, int trmin, int dwmax);
 struct movelist alltrollmoves(struct thudboard * board);
 int counttrollcapts(struct thudboard * board);
 void dotroll(struct thudboard * board, struct move * move);
@@ -44,6 +44,7 @@ void setup(struct thudboard * board);
 char * pl(int n);
 void show(struct thudboard * board);
 int evaluate(struct thudboard * board);
+int heuristic(struct thudboard * board);
 bool legalmove(struct thudboard * board, struct move * move);
 bool legaldwarfmove(struct thudboard * board, struct move * move);
 bool legaltrollmove(struct thudboard * board, struct move * move);
