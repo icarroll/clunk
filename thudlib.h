@@ -15,7 +15,9 @@ void setupgame(struct thudboard * board, int memuse);
 struct move search(struct thudboard * board, int depth);
 int absearch(struct thudboard * board, int depth, int trmin, int dwmax,
             struct move * bestmove);
+
 struct moveheap heapof(struct thudboard * board, struct movelist * list);
+struct movelist allmoves(struct thudboard * board);
 
 struct movelist alldwarfmoves(struct thudboard * board);
 void dodwarf(struct thudboard * board, struct move * move);
