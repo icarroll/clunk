@@ -5,9 +5,10 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <time.h>
+#include <setjmp.h>
 #include <readline/readline.h>
 
-enum {DEPTH = 4};
+enum {SEARCHSECS = 30};
 
 void setupsides(void);
 struct move humanmove(struct thudboard * board);
@@ -38,10 +39,10 @@ int main(int numargs, char * args[])
         putchar('\n');
         show(board);
 
-        time_t start = time(NULL);
+        //time_t start = time(NULL);
         move = movefuncs[board->isdwarfturn ? DWARF : TROLL](board);
-        time_t elapsed = time(NULL) - start;
-        printf("Thinking took %d second%s.\n", elapsed, pl(elapsed));
+        //time_t elapsed = time(NULL) - start;
+        //printf("Thinking took %d second%s.\n", elapsed, pl(elapsed));
         domoveupdatecapts(board, & move);
     }
 }
@@ -84,7 +85,7 @@ struct move computermove(struct thudboard * board)
 
     puts("Thinking...");
     fflush(stdout);
-    move = search(board, DEPTH);
+    move = iterdeepen(board, SEARCHSECS);
     showmove(& move);
 
     return move;

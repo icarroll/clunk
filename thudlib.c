@@ -8,6 +8,8 @@
 #include <string.h>
 #include <limits.h>
 #include <ctype.h>
+#include <time.h>
+#include <setjmp.h>
 
 struct coord initpos = {-1,0};
 
@@ -40,18 +42,60 @@ void setupgame(struct thudboard * board, int memuse)
     setup(board);
 }
 
-struct move search(struct thudboard * board, int depth)
+struct move iterdeepen(struct thudboard * board, int searchtime)
 {
     struct move bestmove;
 
-    absearch(board, depth, INT_MIN, INT_MAX, & bestmove);
+    struct thudboard tempboard = * board;
+    time_t stoptime = time(NULL) + searchtime;
+
+    jmp_buf stopsearch;
+    if (setjmp(stopsearch) == 0) for (int depth=1; true; depth += 1)
+    {
+        struct move move;
+        absearch(& tempboard, depth, INT_MAX,
+                 INT_MIN, INT_MAX, & move,
+                 stoptime, stopsearch);
+        //mtdf(& tempboard, depth, & move, stoptime, stopsearch);
+        bestmove = move;
+
+        //???
+        printf("best move at depth %d: ", depth);
+        showmove(& bestmove);
+    }
 
     return bestmove;
 }
 
-int absearch(struct thudboard * board, int depth, int trmin, int dwmax,
-            struct move * bestmove)
+int mtdf(struct thudboard * board, int depth,
+         struct move * bestmove, time_t stoptime, jmp_buf stopsearch)
 {
+    int min = INT_MIN;
+    int max = INT_MAX;
+
+    int guess = evaluate(board);
+
+    do
+    {
+        int beta = guess + (guess == min);
+
+        guess = absearch(board, depth, INT_MAX,
+                         beta-1, beta, bestmove,
+                         stoptime, stopsearch);
+
+        if (guess < beta) max = guess;
+        else min = guess;
+    } while (min < max);
+
+    return guess;
+}
+
+int absearch(struct thudboard * board, int depth, int width,
+             int trmin, int dwmax, struct move * bestmove,
+             time_t stoptime, jmp_buf stopsearch)
+{
+    if (stoptime && time(NULL) > stoptime) longjmp(stopsearch, true);
+
     if (depth < 1) return evaluate(board);
 
     struct move * move;
@@ -64,7 +108,7 @@ int absearch(struct thudboard * board, int depth, int trmin, int dwmax,
     struct movelist list = allmoves(board);
     struct moveheap queue = heapof(board, & list);
 
-    while (queue.used > 0)
+    for (int i = width; i > 0 && queue.used > 0; --i)
     {
         move = pop(& queue);
 
@@ -73,18 +117,22 @@ int absearch(struct thudboard * board, int depth, int trmin, int dwmax,
         int result;
 
         struct tableentry * entry = ttget(board->hash);
-        if (entry && entry->depth >= nextdepth)
+        if (entry && entry->depth >= nextdepth
+            && ! (trmin < entry->score && entry->score <= entry->trmin
+                  || entry->dwmax <= entry->score && entry->score < dwmax))
         {
-            //??? check window
             result = entry->score;
         }
         else
         {
-            result = absearch(board, nextdepth, trmin, dwmax, NULL);
+            result = absearch(board, nextdepth, width,
+                              trmin, dwmax, NULL,
+                              stoptime, stopsearch);
             if (nextdepth > 0) ttput((struct tableentry)
                 {board->hash, nextdepth, result, trmin, dwmax});
         }
 
+        //??? simplify this
         if (isdwarfturn)
         {
             if (result < dwmax)

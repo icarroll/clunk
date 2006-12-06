@@ -3,6 +3,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <limits.h>
+
+enum {DEPTH = 4};
 
 FILE * book;
 
@@ -20,7 +23,10 @@ int main(int numargs, char * args[])
 
     setupgame(board, memuse);
 
-    search(board, 4);
+    for (int depth=2; depth <= DEPTH; depth += 1)
+    {
+        absearch(board, depth, INT_MAX, INT_MIN, INT_MAX, NULL, 0, NULL);
+    }
 
     book = fopen(BOOKFILENAME, "w");
     for (int i=0; i < TTABLESIZE; ++i)
