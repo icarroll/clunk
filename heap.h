@@ -14,7 +14,7 @@ struct moveheap
 {
     int used;
     int capacity;
-    struct scoredmove * moves;
+    struct scoredmove * moves; //???rename
 };
 
 void initheap(struct moveheap * heap);

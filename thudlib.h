@@ -12,6 +12,15 @@
 
 static char * BOOKFILENAME = "thud.book";
 
+struct genstate
+{
+    void * resume;
+    int dx,dy;
+    int dir;
+    int dist;
+    struct move move;
+};
+
 void setupgame(struct thudboard * board, int memuse);
 
 struct move iterdeepen(struct thudboard * board, int searchtime);
@@ -23,8 +32,11 @@ int absearch(struct thudboard * board, int depth, int width,
 
 struct moveheap heapof(struct thudboard * board, struct movelist * list);
 struct movelist allmoves(struct thudboard * board);
+void addmoves(int num, struct thudboard * board, struct genstate * ctx,
+              struct movelist * list, struct moveheap * queue);
 
 struct movelist alldwarfmoves(struct thudboard * board);
+struct move nextdwarfplay(struct thudboard * board, struct genstate * ctx);
 void dodwarf(struct thudboard * board, struct move * move);
 void undodwarf(struct thudboard * board, struct move * move);
 
@@ -35,6 +47,7 @@ bool dwarfat(struct thudboard * board, struct coord pos);
 void captdwarfs(struct thudboard * board, int num, struct coord * froms);
 
 struct movelist alltrollmoves(struct thudboard * board);
+struct move nexttrollplay(struct thudboard * board, struct genstate * ctx);
 int counttrollcapts(struct thudboard * board);
 void dotroll(struct thudboard * board, struct move * move);
 void undotroll(struct thudboard * board, struct move * move);
