@@ -54,7 +54,7 @@ void setupsides(void)
     char * answer;
 sideagain:
     answer = readline("Would you like to play Dwarf or Troll?\n");
-    if (! answer) goto sideagain;
+    if (! answer) exit(EXIT_SUCCESS);
 
     char c = toupper(answer[0]);
     free(answer);

@@ -197,7 +197,6 @@ int BROKEabsearch(struct thudboard * board, int depth, int width,
         if (ctx.resume) addmoves(10, board, & ctx, & list, & queue);
         if (queue.used == 0) break;
         move = pop(& queue);
-        showmove(move);
 
         domove(board, move);
 
@@ -343,7 +342,7 @@ struct movelist alldwarfmoves(struct thudboard * board)
 
                 if (trollat(board, to))
                 {
-                    * next(& moves) = (struct move) {true, from, to, 1, to};
+                    * next(& moves) = (struct move) {true, from, to, 1, {to}};
                     break;
                 }
             }
@@ -370,7 +369,7 @@ struct movelist alldwarfmoves(struct thudboard * board)
 
                 if (occupied(board, to)) break;
 
-                * next(& moves) = (struct move) {true, from, to, 0};
+                * next(& moves) = (struct move) {true, from, to, 0, {}};
             }
         }
     }
@@ -504,7 +503,7 @@ struct movelist alltrollmoves(struct thudboard * board)
                 if (hasneighbor(board->dwarfs, to))
                 {
                     struct move * move = next(& moves);
-                    * move = (struct move) {false, from, to, 0};
+                    * move = (struct move) {false, from, to, 0, {}};
 
                     for (int i=0; i < NUMDIRS; ++i)
                     {
@@ -536,7 +535,7 @@ struct movelist alltrollmoves(struct thudboard * board)
 
             if (occupied(board, to)) break;
 
-            * next(& moves) = (struct move) {false, from, to, 0};
+            * next(& moves) = (struct move) {false, from, to, 0, {}};
         }
     }
 
