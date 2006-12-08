@@ -7,6 +7,7 @@
 #include <time.h>
 #include <setjmp.h>
 #include <readline/readline.h>
+#include <readline/history.h>
 
 enum {SEARCHSECS = 30};
 
@@ -32,6 +33,7 @@ int main(int numargs, char * args[])
 
     setupgame(board, memuse);
 
+    using_history();
     setupsides();
 
     while (true)
@@ -127,9 +129,18 @@ struct move getmove(char * prompt)
 
     char * line = NULL;
 retry:
-    if (line) free(line);
     line = readline(prompt);
-    if (! line) goto retry;
+
+    if (line)
+    {
+        if (* line) add_history(line);
+        else
+        {
+            free(line);
+            goto retry;
+        }
+    }
+    else exit(EXIT_SUCCESS);
 
     char * cur = line;
 
@@ -190,6 +201,5 @@ retry:
         }
     }
 
-    free(line);
     return move;
 }
