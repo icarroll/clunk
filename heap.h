@@ -21,5 +21,6 @@ void initheap(struct moveheap * heap);
 void closeheap(struct moveheap * heap);
 void insert(struct moveheap * heap, int score, struct move * move);
 struct move * pop(struct moveheap * heap);
+struct scoredmove popscored(struct moveheap * heap);
 
 #endif // HEAP_H

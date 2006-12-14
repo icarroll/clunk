@@ -107,3 +107,13 @@ struct move * pop(struct moveheap * heap)
 
     return move;
 }
+
+struct scoredmove popscored(struct moveheap * heap)
+{
+    struct scoredmove move = heap->moves[0];
+
+    heap->moves[0] = heap->moves[--heap->used];
+    heapdown(heap, 0);
+
+    return move;
+}

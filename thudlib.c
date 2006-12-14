@@ -49,38 +49,96 @@ struct move iterdeepen(struct thudboard * board, int searchtime)
     struct thudboard tempboard = * board;
     time_t stoptime = time(NULL) + searchtime;
 
-    jmp_buf stopsearch;
-    if (setjmp(stopsearch) == 0) for (int depth=1; true; depth += 1)
+    for (int depth=1; depth <= 4; depth += 1)
     {
         struct move move;
-        absearch(& tempboard, depth, INT_MAX,
+        absearch(& tempboard, depth, FULL_WIDTH,
                  INT_MIN, INT_MAX, & move,
-                 stoptime, stopsearch);
-        //mtdf(& tempboard, depth, & move, stoptime, stopsearch);
+                 0, NULL);
         bestmove = move;
 
-        //???
+        //??? write to log?
         printf("best move at depth %d: ", depth);
+        showmove(& bestmove);
+    }
+
+    jmp_buf stopsearch;
+    if (setjmp(stopsearch) == 0) for (int depth=5; true; depth += 1)
+    {
+        struct move move;
+        absearch(& tempboard, depth, 20,
+                 INT_MIN, INT_MAX, & move,
+                 stoptime, stopsearch);
+        bestmove = move;
+
+        /*
+        //??? won't work without a ttable fix of some kind
+        bestmove = zerowindow(& tempboard, depth, stoptime, stopsearch);
+        */
+
+        //??? write to log?
+        printf("best width 20 move at depth %d: ", depth);
         showmove(& bestmove);
     }
 
     return bestmove;
 }
 
-int mtdf(struct thudboard * board, int depth,
-         struct move * bestmove, time_t stoptime, jmp_buf stopsearch)
+struct move zerowindow(struct thudboard * board, int depth,
+                       time_t stoptime, jmp_buf stopsearch)
 {
-    int min = INT_MIN;
-    int max = INT_MAX;
+    struct movelist list = allmoves(board);
+    struct moveheap queue = heapof(board, & list);
 
-    int guess = evaluate(board);
+    //??? should make sure move exists
+    struct scoredmove best = popscored(& queue);
 
+    domove(board, best.move);
+    best.score = mtdf(board, depth, best.score, stoptime, stopsearch);
+    undomove(board, best.move);
+
+    while (queue.used > 0)
+    {
+        struct scoredmove temp = popscored(& queue);
+
+        domove(board, temp.move);
+
+        int result = absearch(board, depth, FULL_WIDTH,
+                              best.score-1, best.score, NULL,
+                              stoptime, stopsearch);
+
+        if (result > best.score)
+        {
+            best = temp;
+            best.score = _mtdf(board, depth,
+                               result, result, INT_MAX,
+                               stoptime, stopsearch);
+        }
+
+        undomove(board, temp.move);
+    }
+
+    return * best.move;
+}
+
+int mtdf(struct thudboard * board, int depth, int guess,
+         time_t stoptime, jmp_buf stopsearch)
+{
+    return _mtdf(board, depth,
+                 guess, INT_MIN, INT_MAX,
+                 stoptime, stopsearch);
+}
+
+int _mtdf(struct thudboard * board, int depth,
+          int guess, int min, int max,
+          time_t stoptime, jmp_buf stopsearch)
+{
     do
     {
         int beta = guess + (guess == min);
 
-        guess = absearch(board, depth, INT_MAX,
-                         beta-1, beta, bestmove,
+        guess = absearch(board, depth, FULL_WIDTH,
+                         beta-1, beta, NULL,
                          stoptime, stopsearch);
 
         if (guess < beta) max = guess;
