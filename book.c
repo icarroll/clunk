@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <limits.h>
 
-enum {DEPTH = 5};
+enum {DEPTH = 4};
 
 FILE * book;
 
