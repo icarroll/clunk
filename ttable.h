@@ -7,9 +7,10 @@ struct tableentry
 {
     hash_t hash;
     int depth;
-    int score;
-    int trmin;
-    int dwmax;
+    int worth;
+    int scoreguess;
+    int min;
+    int max;
 };
 
 void initttable(int memuse);

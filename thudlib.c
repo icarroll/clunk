@@ -175,6 +175,29 @@ int absearch(struct thudboard * board, int depth, int width,
         int result;
 
         struct tableentry * entry = ttget(board->hash);
+        if (entry && entry->depth >= nextdepth)
+        {
+            // ttable has usable data, find out if more search is needed
+            // if score is exactly known, don't search
+            // else find overlap between search window and entry min/max
+            //      if no overlap, don't search
+            //      else, search with window of overlap
+
+            // if search returns value outside of entry min/max, panic
+        }
+        else
+        {
+            // ttable doesn't have usable data, search is needed
+            result = absearch(board, nextdepth, width,
+                              trmin, dwmax, NULL,
+                              stoptime, stopsearch);
+
+            min = max = result;
+            if (result < trmin) min = INT_MIN;
+            else if (dwmax < result) max = INT_MAX;
+        }
+        // store into ttable
+
         if (entry && entry->depth >= nextdepth
             && ! (trmin < entry->score && entry->score <= entry->trmin
                   || entry->dwmax <= entry->score && entry->score < dwmax))
@@ -187,7 +210,7 @@ int absearch(struct thudboard * board, int depth, int width,
                               trmin, dwmax, NULL,
                               stoptime, stopsearch);
             if (nextdepth > 0) ttput((struct tableentry)
-                {board->hash, nextdepth, result, trmin, dwmax});
+                {board->hash, nextdepth, nextdepth, result, result});
         }
 
         //??? simplify this
@@ -223,6 +246,7 @@ int absearch(struct thudboard * board, int depth, int width,
     return (isdwarfturn ^ cutoff) ? dwmax : trmin;
 }
 
+/*
 int BROKEabsearch(struct thudboard * board, int depth, int width,
              int trmin, int dwmax, struct move * bestmove,
              time_t stoptime, jmp_buf stopsearch)
@@ -308,6 +332,7 @@ int BROKEabsearch(struct thudboard * board, int depth, int width,
 
     return (isdwarfturn ^ cutoff) ? dwmax : trmin;
 }
+*/
 
 struct moveheap heapof(struct thudboard * board, struct movelist * list)
 {
