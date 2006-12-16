@@ -79,13 +79,18 @@ void ttput(struct tableentry newentry)
     int index = ttindex(newentry.hash);
     struct tableentry * entry = & ttable[index];
 
-    * entry = newentry;
+    if (newentry.worth >= entry->worth) * entry = newentry;
+    else entry->worth -= newentry.worth;
 }
 
 struct tableentry * ttget(hash_t hash)
 {
-    int index = ttindex(hash);
+    struct tableentry * entry = & ttable[ttindex(hash)];
 
-    if (ttable[index].hash == hash) return & ttable[index];
+    if (entry->hash == hash)
+    {
+      entry->worth = entry->depth;
+      return entry;
+    }
     else return NULL;
 }

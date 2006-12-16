@@ -42,6 +42,26 @@ void setupgame(struct thudboard * board, int memuse)
     setup(board);
 }
 
+struct move BROKEiterdeepen(struct thudboard * board, int searchtime)
+{
+    struct move bestmove;
+
+    struct thudboard tempboard = * board;
+    time_t stoptime = time(NULL) + searchtime;
+
+    jmp_buf stopsearch;
+    if (setjmp(stopsearch) == 0) for (int depth=1; true; depth += 1)
+    {
+        bestmove = zerowindow(& tempboard, depth, stoptime, stopsearch);
+
+        //??? write to log?
+        printf("best move at depth %d: ", depth);
+        showmove(& bestmove);
+    }
+
+    return bestmove;
+}
+
 struct move iterdeepen(struct thudboard * board, int searchtime)
 {
     struct move bestmove;
@@ -148,6 +168,16 @@ int _mtdf(struct thudboard * board, int depth,
     return guess;
 }
 
+static int max(int a, int b)
+{
+    return a > b ? a : b;
+}
+
+static int min(int a, int b)
+{
+    return a < b ? a : b;
+}
+
 int absearch(struct thudboard * board, int depth, int width,
              int trmin, int dwmax, struct move * bestmove,
              time_t stoptime, jmp_buf stopsearch)
@@ -177,43 +207,52 @@ int absearch(struct thudboard * board, int depth, int width,
         struct tableentry * entry = ttget(board->hash);
         if (entry && entry->depth >= nextdepth)
         {
-            // ttable has usable data, find out if more search is needed
-            // if score is exactly known, don't search
-            // else find overlap between search window and entry min/max
-            //      if no overlap, don't search
-            //      else, search with window of overlap
+            if (entry->min == entry->max) result = entry->min;
+            else
+            {
+                if (entry->max <= trmin || entry->min >= dwmax)
+                {
+                    result = entry->scoreguess;
+                }
+                else
+                {
+                    int windlow = min(trmin, entry->min);
+                    int windhigh = max(dwmax, entry->max);
+                    result = absearch(board, nextdepth, width,
+                                      windlow, windhigh, NULL,
+                                      stoptime, stopsearch);
 
-            // if search returns value outside of entry min/max, panic
+                    if (result < entry->min || result > entry->max)
+                    {
+                        goto search;
+                    }
+
+                    if (entry->depth == nextdepth)
+                    {
+                        entry->scoreguess = result;
+                        if (result < windhigh) entry->max = result;
+                        if (result > windlow) entry->min = result;
+                    }
+                }
+            }
         }
         else
         {
-            // ttable doesn't have usable data, search is needed
+search:
             result = absearch(board, nextdepth, width,
                               trmin, dwmax, NULL,
                               stoptime, stopsearch);
 
+            int min, max;
             min = max = result;
             if (result < trmin) min = INT_MIN;
-            else if (dwmax < result) max = INT_MAX;
-        }
-        // store into ttable
+            else if (result > dwmax) max = INT_MAX;
 
-        if (entry && entry->depth >= nextdepth
-            && ! (trmin < entry->score && entry->score <= entry->trmin
-                  || entry->dwmax <= entry->score && entry->score < dwmax))
-        {
-            result = entry->score;
-        }
-        else
-        {
-            result = absearch(board, nextdepth, width,
-                              trmin, dwmax, NULL,
-                              stoptime, stopsearch);
-            if (nextdepth > 0) ttput((struct tableentry)
-                {board->hash, nextdepth, nextdepth, result, result});
+            if (! entry) ttput((struct tableentry)
+                    {board->hash, nextdepth, nextdepth, result, min, max});
         }
 
-        //??? simplify this
+        // the only problem with not doing negamax
         if (isdwarfturn)
         {
             if (result < dwmax)
@@ -796,7 +835,7 @@ void show(struct thudboard * board)
 int evaluate(struct thudboard * board)
 {
     struct tableentry * entry = ttget(board->hash);
-    if (entry) return entry->score;
+    if (entry) return entry->scoreguess;
     else return heuristic(board);
 }
 
@@ -818,11 +857,6 @@ bool legalmove(struct thudboard * board, struct move * move)
     // check move details
     else if (move->isdwarfmove) return legaldwarfmove(board, move);
     else return legaltrollmove(board, move);
-}
-
-static int max(int a, int b)
-{
-    return a > b ? a : b;
 }
 
 static int signum(int n)
