@@ -79,6 +79,8 @@ bool legaltrollmove(struct thudboard * board, struct move * move);
 void domove(struct thudboard * board, struct move * move);
 void undomove(struct thudboard * board, struct move * move);
 void domoveupdatecapts(struct thudboard * board, struct move * move);
+void skipspace(char ** input);
+bool getpos(char ** input, struct coord * pos);
 void showpos(struct coord pos);
 void showmove(struct move * move);
 

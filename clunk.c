@@ -93,36 +93,6 @@ struct move computermove(struct thudboard * board)
     return move;
 }
 
-//??? use strcspn
-void skipspace(char ** input)
-{
-    for (; ** input == ' '; ++ * input);
-}
-
-int lettertocolumn(char c)
-{
-    c = toupper(c);
-
-    if (c < 'A' || c == 'I' || c > 'Q') return -1;
-    else return c - 'A' - (c > 'I');
-}
-
-bool getpos(char ** input, struct coord * pos)
-{
-    pos->x = lettertocolumn(** input);
-    if (pos->x == -1) return false;
-    * input += 1;
-
-    int numchars;
-    int numconvs = sscanf(* input, "%2d%n", & pos->y, & numchars);
-    if (numconvs < 1) return false;
-    pos->y -= 1;
-    if (pos->y < 0 || pos->y >= SIZE) return false;
-
-    * input += numchars;
-    return true;
-}
-
 struct move getmove(char * prompt)
 {
     struct move move;

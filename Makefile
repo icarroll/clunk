@@ -1,7 +1,7 @@
 CFLAGS = -g -std=gnu99 # -pg
 LDFLAGS = -lreadline
 
-TARGETS = clunk book
+TARGETS = clunk book playthud
 OBJS = thudlib.o heap.o list.o
 
 .PHONY: all
@@ -14,3 +14,5 @@ clean:
 clunk: clunk.c $(OBJS) ttable.o
 
 book: book.c $(OBJS)
+
+playthud: playthud.c $(OBJS) ttable.o
