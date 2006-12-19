@@ -2,25 +2,27 @@ import sys
 from subprocess import Popen,PIPE
 from itertools import izip
 
-def main():
+def main(dwarfcmd=None, trollcmd=None):
     board = ThudBoard()
 
-    dwarfcmd = raw_input("Dwarf player: ").split()
-    dwarf = Popen(dwarfcmd, stdin=PIPE, stdout=PIPE)
+    if dwarfcmd is None:
+        dwarfcmd = raw_input("Dwarf player: ")
+    dwarf = Popen(dwarfcmd.split(), stdin=PIPE, stdout=PIPE)
     print >>dwarf.stdin, "d"
 
-    trollcmd = raw_input("Troll player: ").split()
-    troll = Popen(trollcmd, stdin=PIPE, stdout=PIPE)
+    if trollcmd is None:
+        trollcmd = raw_input("Troll player: ")
+    troll = Popen(trollcmd.split(), stdin=PIPE, stdout=PIPE)
     print >>troll.stdin, "T"
 
     while True:
         move = dwarf.stdout.readline()
-        print >>troll.stdin, move
-        print move
+        troll.stdin.write(move)
+        sys.stdout.write(move)
 
         move = troll.stdout.readline()
-        print >>dwarf.stdin, move
-        print move
+        dwarf.stdin.write(move)
+        sys.stdout.write(move)
 
 class ThudBoard:
     """
@@ -205,7 +207,4 @@ if __name__ == "__main__":
     if "-t" in sys.argv:
         _test()
     else:
-        import psyco
-        psyco.full()
-
-        main()
+        main(*sys.argv[1:])
