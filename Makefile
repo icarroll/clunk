@@ -1,5 +1,5 @@
-CFLAGS = -g -std=gnu99 # -pg
-LDFLAGS = -lreadline
+CFLAGS = -g -std=gnu99 -pg
+LDFLAGS = -lreadline -pg
 
 TARGETS = clunk book playthud
 OBJS = thudlib.o heap.o list.o
