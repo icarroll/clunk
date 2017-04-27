@@ -15,14 +15,20 @@ def main(dwarfcmd=None, trollcmd=None):
     troll = Popen(trollcmd.split(), stdin=PIPE, stdout=PIPE)
     print >>troll.stdin, "T"
 
+    print board.show()
+
     while True:
         move = dwarf.stdout.readline()
         troll.stdin.write(move)
         sys.stdout.write(move)
+        board.do(Move.parse(move))
+        print board.show()
 
         move = troll.stdout.readline()
         dwarf.stdin.write(move)
         sys.stdout.write(move)
+        board.do(Move.parse(move))
+        print board.show()
 
 class ThudBoard:
     """
@@ -189,13 +195,29 @@ class Move:
         self.capts = capts
 
     def __str__(self):
-        temp = [self.side, strpos(self.frompos), strpos(self.topos)]
+        temp = [self.side, strpos(self.frompos), "-", strpos(self.topos)]
         for capt in self.capts:
-            temp += ["x " + strpos(capt)]
+            temp += ["x", strpos(capt)]
         return " ".join(temp)
 
+    @classmethod
+    def parse(cls, text):
+        text = text.replace(" ", "").upper()
+        side = text[0]
+        if side == "D": side = "d"
+        fromtext = text[1:3]
+        totext = text[4:6]
+        capttexts = [c for c in text[8:].split("X") if c]
+
+        return Move(side, posstr(fromtext), posstr(totext), map(posstr, capttexts))
+
 def strpos((x,y)):
-    return Board.COLUMNS[x] + str(y+1)
+    return ThudBoard.COLUMNS[x] + str(y+1)
+
+def posstr(text):
+    x = ThudBoard.COLUMNS.find(text[0])
+    y = int(text[1]) - 1
+    return (x,y)
 
 def _test():
     import doctest
