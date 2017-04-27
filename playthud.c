@@ -46,9 +46,9 @@ struct move getmove(void)
 {
     struct move move;
 
-    char * line = readline(NULL);
-
-    if (! line) exit(EXIT_SUCCESS);
+    char * line = NULL;
+    int size = 0;
+    getline(& line, & size, stdin);
 
     char * cur = line;
 
@@ -75,7 +75,7 @@ struct move getmove(void)
     while (move.numcapts <= NUMDIRS)
     {
         skipspace(& cur);
-        if (* cur == '\0') break;
+        if (* cur == '\0' || * cur == '\n') break;
 
         skipspace(& cur);
         if (toupper(* cur++) != 'X') exit(EXIT_FAILURE);
@@ -85,5 +85,6 @@ struct move getmove(void)
         if (! valid) exit(EXIT_FAILURE);
     }
 
+    free(line);
     return move;
 }
