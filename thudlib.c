@@ -79,8 +79,8 @@ struct move iterdeepen(struct thudboard * board, int searchtime)
         bestmove = move;
 
         //??? write to log?
-        printf("best move at depth %d: ", depth);
-        showmove(& bestmove);
+        //printf("best move at depth %d: ", depth);
+        //showmove(& bestmove);
     }
 
     return bestmove;
@@ -1075,11 +1075,11 @@ void showmove(struct move * move)
     putchar(move->isdwarfmove ? 'd' : 'T');
     putchar(' ');
     showpos(move->from);
-    fputs(" - ", stdout);
+    fputs("-", stdout);
     showpos(move->to);
     for (int i=0; i < move->numcapts; ++i)
     {
-        fputs(" x ", stdout);
+        fputs("x", stdout);
         showpos(move->capts[i]);
     }
     putchar('\n');

@@ -20,13 +20,13 @@ def main(dwarfcmd=None, trollcmd=None):
     while True:
         move = dwarf.stdout.readline()
         troll.stdin.write(move)
-        sys.stdout.write(move)
+        sys.stdout.write(move) ; sys.stdout.flush()
         board.do(Move.parse(move))
         print board.show()
 
         move = troll.stdout.readline()
         dwarf.stdin.write(move)
-        sys.stdout.write(move)
+        sys.stdout.write(move) ; sys.stdout.flush()
         board.do(Move.parse(move))
         print board.show()
 
