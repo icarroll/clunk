@@ -313,11 +313,9 @@ search:
 
 struct move montecarlo(struct thudboard * board, int searchtime)
 {
-    struct thudboard tempboard = * board;
-
     int progsecs = 2;
     time_t starttime = time(NULL);
-    int tries = 0;
+    int playouts = 0;
     while (true)
     {
         time_t elapsed = time(NULL) - starttime;
@@ -328,41 +326,49 @@ struct move montecarlo(struct thudboard * board, int searchtime)
             struct move bestmove = most_visited_move(board, moves);
             closelist(& moves);
 
-            struct thudboard WHUTboard = * board;
-            domove(& WHUTboard, & bestmove);
-            int visits = ttget(WHUTboard.hash)->visited;
-            printf("best move after %d seconds with %d visits (%d tries): ",
-                   elapsed, visits, tries);
+            domove(board, & bestmove);
+            int visits = ttget(board->hash)->visited;
+            undomove(board, & bestmove);
+            printf("after %d seconds (%d playouts) best move has %d visits: ",
+                   elapsed, playouts, visits);
             showmove(& bestmove);
             progsecs += progsecs / 2;
         }
-        uct_search(& tempboard);
-        tries += 1;
+        uct_search(board);
+        playouts += 1;
     }
 
     struct movelist list = allmoves(board);
-    struct move best = most_visited_move(& tempboard, list); //TODO use score also
+    struct move best = most_visited_move(board, list); //TODO use score also
     closelist(& list);
     return best;
 }
 
 struct move most_visited_move(struct thudboard * board, struct movelist list)
 {
-    struct thudboard tempboard = * board;
-
     struct move best = list.moves[0];
-    domove(& tempboard, & best);
+    domove(board, & best);
     struct tableentry * entry = ttget(board->hash);
-    int visited = entry ? entry->visited : 0;
-    undomove(& tempboard, & best);
+    /*
+    if (! entry) printf("not visited ");
+    else printf("visited %d ", entry->visited);
+    showmove(& list.moves[0]);
+    */
+    int visited = entry ? entry->visited : -1;
+    undomove(board, & best);
 
     for (int i=1 ; i < list.used ; i+=1)
     {
         struct move candidate = list.moves[i];
-        domove(& tempboard, & candidate);
+        domove(board, & candidate);
         struct tableentry * cand_entry = ttget(board->hash);
-        int cand_visited = cand_entry ? cand_entry->visited : 0;
-        undomove(& tempboard, & candidate);
+        int cand_visited = cand_entry ? cand_entry->visited : -1;
+        /*
+        if (! cand_entry) printf("not visited ");
+        else printf("visited %d ", cand_entry->visited);
+        showmove(& list.moves[i]);
+        */
+        undomove(board, & candidate);
 
         if (cand_visited > visited)
         {
@@ -379,11 +385,13 @@ int uct_search(struct thudboard * board)
     struct tableentry * entry = ttget(board->hash);
     if (! entry)
     {
+        //printf("creating root node\n");
         ttput((struct tableentry) {board->hash});
         entry = ttget(board->hash);
     }
 
-    struct move chosen = highest_ucb1_move(board); //TODO check for no possible move
+    struct move chosen = highest_ucb1_move(board); //TODO check for no moves
+    //printf("chose move "); showmove(& chosen);
     domove(board, & chosen);
 
     entry = ttget(board->hash);
@@ -403,6 +411,8 @@ int uct_search(struct thudboard * board)
     }
     else
     {
+        //printf("evaluating this:\n");
+        //show(board);
         struct thudboard tempboard = * board;
         for (int n=0 ; n < 100 ; n+=1)
         {
@@ -410,7 +420,10 @@ int uct_search(struct thudboard * board)
             if (nullmove(randmove)) break;
             domove(& tempboard, & randmove);
         }
+        //printf("randomly plays to:\n");
+        //show(& tempboard);
         value = heuristic(& tempboard);
+        //printf("value: %d\n", value);
         entry->visited = 1;
         entry->scoresum = value;
     }
@@ -520,6 +533,7 @@ struct move highest_ucb1_dwarf_move(struct thudboard * board)
         }
     }
 
+    //printf("dwarf move no short-circuit\n");
     return chosen_move;
 }
 
@@ -604,6 +618,7 @@ struct move highest_ucb1_troll_move(struct thudboard * board)
         }
     }
 
+    //printf("troll move no short-circuit\n");
     return chosen_move;
 }
 
