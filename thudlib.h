@@ -27,6 +27,7 @@ enum {FULL_WIDTH = INT_MAX};
 void setupgame(struct thudboard * board, int memuse);
 
 struct move iterdeepen(struct thudboard * board, int searchtime);
+struct move beamiterdeepen(struct thudboard * board, int searchtime);
 struct move zerowindow(struct thudboard * board, int depth,
                        time_t stoptime, jmp_buf stopsearch);
 int mtdf(struct thudboard * board, int depth, int guess,
@@ -38,10 +39,23 @@ int absearch(struct thudboard * board, int depth, int width,
              int trmin, int dwmax, struct move * bestmove,
              time_t stoptime, jmp_buf stopsearch);
 
+struct move montecarlo(struct thudboard * board, int searchtime);
+struct move most_visited_move(struct thudboard * board, struct movelist moves);
+int uct_search(struct thudboard * board);
+bool nullmove(struct move move);
+struct move highest_ucb1_move(struct thudboard * board);
+struct move highest_ucb1_dwarf_move(struct thudboard * board);
+struct move highest_ucb1_troll_move(struct thudboard * board);
+struct move random_move(struct thudboard * board);
+struct move random_dwarf_move(struct thudboard * board);
+struct move random_troll_move(struct thudboard * board);
+
 struct moveheap heapof(struct thudboard * board, struct movelist * list);
 struct movelist allmoves(struct thudboard * board);
 void addmoves(int num, struct thudboard * board, struct genstate * ctx,
               struct movelist * list, struct moveheap * queue);
+
+static bool occupied(struct thudboard * board, struct coord pos);
 
 struct movelist alldwarfmoves(struct thudboard * board);
 struct move nextdwarfplay(struct thudboard * board, struct genstate * ctx);
@@ -72,6 +86,7 @@ void setup(struct thudboard * board);
 char * pl(int n);
 void show(struct thudboard * board);
 int evaluate(struct thudboard * board);
+enum {MAX_SCORE = 4000*8};
 int heuristic(struct thudboard * board);
 bool legalmove(struct thudboard * board, struct move * move);
 bool legaldwarfmove(struct thudboard * board, struct move * move);

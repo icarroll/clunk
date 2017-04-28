@@ -11,6 +11,8 @@ struct tableentry
     int scoreguess;
     int min;
     int max;
+    int visited;
+    int scoresum;
 };
 
 void initttable(int memuse);

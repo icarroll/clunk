@@ -7,6 +7,8 @@
 #include <stdbool.h>
 #include <string.h>
 #include <limits.h>
+#include <float.h>
+#include <math.h>
 #include <ctype.h>
 #include <time.h>
 #include <setjmp.h>
@@ -79,8 +81,8 @@ struct move iterdeepen(struct thudboard * board, int searchtime)
         bestmove = move;
 
         //??? write to log?
-        printf("best move at depth %d: ", depth);
-        showmove(& bestmove);
+        //printf("best move at depth %d: ", depth);
+        //showmove(& bestmove);
     }
 
     return bestmove;
@@ -102,8 +104,8 @@ struct move beamiterdeepen(struct thudboard * board, int searchtime)
         bestmove = move;
 
         //??? write to log?
-        //printf("best move at depth %d: ", depth);
-        //showmove(& bestmove);
+        printf("best move at depth %d: ", depth);
+        showmove(& bestmove);
     }
 
     jmp_buf stopsearch;
@@ -121,8 +123,8 @@ struct move beamiterdeepen(struct thudboard * board, int searchtime)
         */
 
         //??? write to log?
-        //printf("best width 20 move at depth %d: ", depth);
-        //showmove(& bestmove);
+        printf("best width 20 move at depth %d: ", depth);
+        showmove(& bestmove);
     }
 
     return bestmove;
@@ -309,93 +311,461 @@ search:
     return (isdwarfturn ^ cutoff) ? dwmax : trmin;
 }
 
-/*
-int BROKEabsearch(struct thudboard * board, int depth, int width,
-             int trmin, int dwmax, struct move * bestmove,
-             time_t stoptime, jmp_buf stopsearch)
+struct move montecarlo(struct thudboard * board, int searchtime)
 {
-    if (stoptime && time(NULL) > stoptime) longjmp(stopsearch, true);
+    struct thudboard tempboard = * board;
 
-    if (depth < 1) return evaluate(board);
-
-    struct move * move;
-    bool cutoff = false;
-
-    int nextdepth = depth - 1;
-
-    bool isdwarfturn = board->isdwarfturn;
-
-    struct genstate ctx;
-    ctx.resume = NULL;
-
-    struct movelist list;
-    initlist(& list);
-
-    struct moveheap queue;
-    initheap(& queue);
-
-    // prime the pump
-    addmoves(10, board, & ctx, & list, & queue);
-
-    for (int i = width; i > 0; --i)
+    int progsecs = 2;
+    time_t starttime = time(NULL);
+    int tries = 0;
+    while (true)
     {
-        if (ctx.resume) addmoves(10, board, & ctx, & list, & queue);
-        if (queue.used == 0) break;
-        move = pop(& queue);
-
-        domove(board, move);
-
-        int result;
-
-        struct tableentry * entry = ttget(board->hash);
-        if (entry && entry->depth >= nextdepth
-            && ! (trmin < entry->score && entry->score <= entry->trmin
-                  || entry->dwmax <= entry->score && entry->score < dwmax))
+        time_t elapsed = time(NULL) - starttime;
+        if (elapsed >= searchtime) break;
+        if (elapsed >= progsecs)
         {
-            result = entry->score;
+            struct movelist moves = allmoves(board);
+            struct move bestmove = most_visited_move(board, moves);
+            closelist(& moves);
+
+            struct thudboard WHUTboard = * board;
+            domove(& WHUTboard, & bestmove);
+            int visits = ttget(WHUTboard.hash)->visited;
+            printf("best move after %d seconds with %d visits (%d tries): ",
+                   elapsed, visits, tries);
+            showmove(& bestmove);
+            progsecs += progsecs / 2;
         }
-        else
-        {
-            result = absearch(board, nextdepth, width,
-                              trmin, dwmax, NULL,
-                              stoptime, stopsearch);
-            if (nextdepth > 0) ttput((struct tableentry)
-                {board->hash, nextdepth, result, trmin, dwmax});
-        }
+        uct_search(& tempboard);
+        tries += 1;
+    }
 
-        //??? simplify this
-        if (isdwarfturn)
-        {
-            if (result < dwmax)
-            {
-                dwmax = result;
-                if (bestmove) * bestmove = * move;
-            }
-        }
-        else
-        {
-            if (result > trmin)
-            {
-                trmin = result;
-                if (bestmove) * bestmove = * move;
-            }
-        }
+    struct movelist list = allmoves(board);
+    struct move best = most_visited_move(& tempboard, list); //TODO use score also
+    closelist(& list);
+    return best;
+}
 
-        undomove(board, move);
+struct move most_visited_move(struct thudboard * board, struct movelist list)
+{
+    struct thudboard tempboard = * board;
 
-        if (trmin >= dwmax)
+    struct move best = list.moves[0];
+    domove(& tempboard, & best);
+    struct tableentry * entry = ttget(board->hash);
+    int visited = entry ? entry->visited : 0;
+    undomove(& tempboard, & best);
+
+    for (int i=1 ; i < list.used ; i+=1)
+    {
+        struct move candidate = list.moves[i];
+        domove(& tempboard, & candidate);
+        struct tableentry * cand_entry = ttget(board->hash);
+        int cand_visited = cand_entry ? cand_entry->visited : 0;
+        undomove(& tempboard, & candidate);
+
+        if (cand_visited > visited)
         {
-            cutoff = true;
-            break;
+            best = candidate;
+            visited = cand_visited;
         }
     }
 
-    closeheap(& queue);
-    closelist(& list);
-
-    return (isdwarfturn ^ cutoff) ? dwmax : trmin;
+    return best;
 }
-*/
+
+int uct_search(struct thudboard * board)
+{
+    struct tableentry * entry = ttget(board->hash);
+    if (! entry)
+    {
+        ttput((struct tableentry) {board->hash});
+        entry = ttget(board->hash);
+    }
+
+    struct move chosen = highest_ucb1_move(board); //TODO check for no possible move
+    domove(board, & chosen);
+
+    entry = ttget(board->hash);
+    if (! entry)
+    {
+        ttput((struct tableentry) {board->hash});
+        entry = ttget(board->hash);
+    }
+
+    int value;
+    if (entry->visited > 0)
+    {
+        //printf("visited %d\n", entry->visited);
+        value = uct_search(board);
+        entry->visited += 1;
+        entry->scoresum += value;
+    }
+    else
+    {
+        struct thudboard tempboard = * board;
+        for (int n=0 ; n < 100 ; n+=1)
+        {
+            struct move randmove = random_move(& tempboard);
+            if (nullmove(randmove)) break;
+            domove(& tempboard, & randmove);
+        }
+        value = heuristic(& tempboard);
+        entry->visited = 1;
+        entry->scoresum = value;
+    }
+
+    undomove(board, & chosen);
+    return value;
+}
+
+bool nullmove(struct move move)
+{
+    return move.from.x == -1;
+}
+
+double ucb1(struct thudboard * board, struct move * move)
+{
+    domove(board, move);
+    struct tableentry * entry = ttget(board->hash);
+    undomove(board, move);
+    if (! entry) return DBL_MAX;
+    int child_visited = entry->visited;
+
+    entry = ttget(board->hash);
+    return (double) entry->scoresum / entry->visited
+           + MAX_SCORE * sqrt(2 * log(entry->visited) / child_visited);
+}
+
+struct move highest_ucb1_move(struct thudboard * board)
+{
+    return board->isdwarfturn ? highest_ucb1_dwarf_move(board)
+                              : highest_ucb1_troll_move(board);
+}
+
+struct move highest_ucb1_dwarf_move(struct thudboard * board)
+{
+    struct move chosen_move = (struct move) {false, {-1, -1}};
+    double chosen_ucb1_score = INT_MIN;
+
+    // generate attacks
+    struct coord from = initpos;
+    while (true)
+    {
+        from = nextpos(board->dwarfs, from);
+        if (from.x == -1) break;
+
+        for (int dir = 0; dir < NUMDIRS; ++dir)
+        {
+            int dx = DX[dir];
+            int dy = DY[dir];
+
+            for (int dist = 1; dist < SIZE ; ++dist)
+            {
+                struct coord to = {from.x + dx * dist,
+                                   from.y + dy * dist};
+                if (! inbounds(to)) break;
+
+                if (dwarfat(board, to) || blockat(board, to)) break;
+
+                struct coord check = {from.x - dx * (dist-1),
+                                      from.y - dy * (dist-1)};
+                if (! inbounds(check) || ! dwarfat(board, check)) break;
+
+                if (trollat(board, to))
+                {
+                    struct move candidate = (struct move) {true, from, to, 1, {to}};
+                    double ucb1_score = ucb1(board, & candidate);
+                    if (ucb1_score == DBL_MAX) return candidate;
+                    if (ucb1_score > chosen_ucb1_score)
+                    {
+                        chosen_move = candidate;
+                        chosen_ucb1_score = ucb1_score;
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    // generate moves
+    from = initpos;
+    while (true)
+    {
+        from = nextpos(board->dwarfs, from);
+        if (from.x == -1) break;
+
+        for (int dir = 0; dir < NUMDIRS; ++dir)
+        {
+            int dx = DX[dir];
+            int dy = DY[dir];
+
+            for (int dist = 1; dist < SIZE ; ++dist)
+            {
+                struct coord to = {from.x + dx * dist,
+                                   from.y + dy * dist};
+                if (! inbounds(to)) break;
+
+                if (occupied(board, to)) break;
+
+                struct move candidate = (struct move) {true, from, to, 0, {}};
+                double ucb1_score = ucb1(board, & candidate);
+                if (ucb1_score == DBL_MAX) return candidate;
+                if (ucb1_score > chosen_ucb1_score)
+                {
+                    chosen_move = candidate;
+                    chosen_ucb1_score = ucb1_score;
+                }
+            }
+        }
+    }
+
+    return chosen_move;
+}
+
+struct move highest_ucb1_troll_move(struct thudboard * board)
+{
+    struct move chosen_move = (struct move) {false, {-1, -1}};
+    double chosen_ucb1_score = INT_MIN;
+
+    // generate attacks
+    struct coord from = initpos;
+    while (true)
+    {
+        from = nextpos(board->trolls, from);
+        if (from.x == -1) break;
+
+        for (int dir = 0; dir < NUMDIRS; ++dir)
+        {
+            int dx = DX[dir];
+            int dy = DY[dir];
+
+            for (int dist = 1; dist < SIZE ; ++dist)
+            {
+                struct coord to = {from.x + dx * dist,
+                                   from.y + dy * dist};
+                if (! inbounds(to)) break;
+
+                if (occupied(board, to)) break;
+
+                struct coord check = {from.x - dx * (dist-1),
+                                      from.y - dy * (dist-1)};
+                if (! inbounds(check) || ! trollat(board, check)) break;
+
+                if (hasneighbor(board->dwarfs, to))
+                {
+                    struct move candidate = (struct move) {false, from, to, 0, {}};
+                    for (int i=0; i < NUMDIRS; ++i)
+                    {
+                        struct coord capt = {to.x + DX[i],
+                                             to.y + DY[i]};
+                        if (inbounds(capt) && dwarfat(board, capt))
+                        {
+                            candidate.capts[candidate.numcapts++] = capt;
+                        }
+
+                        double ucb1_score = ucb1(board, & candidate);
+                        if (ucb1_score == DBL_MAX) return candidate;
+                        if (ucb1_score > chosen_ucb1_score)
+                        {
+                            chosen_move = candidate;
+                            chosen_ucb1_score = ucb1_score;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // generate moves
+    from = initpos;
+    while (true)
+    {
+        from = nextpos(board->trolls, from);
+        if (from.x == -1) break;
+
+        for (int dir = 0; dir < NUMDIRS; ++dir)
+        {
+            struct coord to = {from.x + DX[dir],
+                               from.y + DY[dir]};
+
+            if (! inbounds(to)) continue;
+
+            if (occupied(board, to)) break;
+
+            struct move candidate = (struct move) {false, from, to, 0, {}};
+            double ucb1_score = ucb1(board, & candidate);
+            if (ucb1_score == DBL_MAX) return candidate;
+            if (ucb1_score > chosen_ucb1_score)
+            {
+                chosen_move = candidate;
+                chosen_ucb1_score = ucb1_score;
+            }
+        }
+    }
+
+    return chosen_move;
+}
+
+struct move random_move(struct thudboard * board)
+{
+    return board->isdwarfturn ? random_dwarf_move(board)
+                              : random_troll_move(board);
+}
+
+struct move random_dwarf_move(struct thudboard * board)
+{
+    struct move chosen_move = (struct move) {false, {-1, -1}};
+    int moves_considered = 0;
+
+    // generate attacks
+    struct coord from = initpos;
+    while (true)
+    {
+        from = nextpos(board->dwarfs, from);
+        if (from.x == -1) break;
+
+        for (int dir = 0; dir < NUMDIRS; ++dir)
+        {
+            int dx = DX[dir];
+            int dy = DY[dir];
+
+            for (int dist = 1; dist < SIZE ; ++dist)
+            {
+                struct coord to = {from.x + dx * dist,
+                                   from.y + dy * dist};
+                if (! inbounds(to)) break;
+
+                if (dwarfat(board, to) || blockat(board, to)) break;
+
+                struct coord check = {from.x - dx * (dist-1),
+                                      from.y - dy * (dist-1)};
+                if (! inbounds(check) || ! dwarfat(board, check)) break;
+
+                if (trollat(board, to))
+                {
+                    moves_considered += 1;
+                    if (random() < LONG_MAX / moves_considered)
+                    {
+                        chosen_move = (struct move) {true, from, to, 1, {to}};
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    // generate moves
+    from = initpos;
+    while (true)
+    {
+        from = nextpos(board->dwarfs, from);
+        if (from.x == -1) break;
+
+        for (int dir = 0; dir < NUMDIRS; ++dir)
+        {
+            int dx = DX[dir];
+            int dy = DY[dir];
+
+            for (int dist = 1; dist < SIZE ; ++dist)
+            {
+                struct coord to = {from.x + dx * dist,
+                                   from.y + dy * dist};
+                if (! inbounds(to)) break;
+
+                if (occupied(board, to)) break;
+
+                moves_considered += 1;
+                if (random() < LONG_MAX / moves_considered)
+                {
+                    chosen_move = (struct move) {true, from, to, 0, {}};
+                }
+            }
+        }
+    }
+
+    return chosen_move;
+}
+
+struct move random_troll_move(struct thudboard * board)
+{
+    struct move chosen_move = (struct move) {false, {-1, -1}};
+    int moves_considered = 0;
+
+    // generate attacks
+    struct coord from = initpos;
+    while (true)
+    {
+        from = nextpos(board->trolls, from);
+        if (from.x == -1) break;
+
+        for (int dir = 0; dir < NUMDIRS; ++dir)
+        {
+            int dx = DX[dir];
+            int dy = DY[dir];
+
+            for (int dist = 1; dist < SIZE ; ++dist)
+            {
+                struct coord to = {from.x + dx * dist,
+                                   from.y + dy * dist};
+                if (! inbounds(to)) break;
+
+                if (occupied(board, to)) break;
+
+                struct coord check = {from.x - dx * (dist-1),
+                                      from.y - dy * (dist-1)};
+                if (! inbounds(check) || ! trollat(board, check)) break;
+
+                if (hasneighbor(board->dwarfs, to))
+                {
+                    moves_considered += 1;
+                    if (random() < LONG_MAX / moves_considered)
+                    {
+                        struct move * move = & chosen_move;
+                        * move = (struct move) {false, from, to, 0, {}};
+
+                        for (int i=0; i < NUMDIRS; ++i)
+                        {
+                            struct coord capt = {to.x + DX[i],
+                                                 to.y + DY[i]};
+                            if (inbounds(capt) && dwarfat(board, capt))
+                            {
+                                move->capts[move->numcapts++] = capt;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // generate moves
+    from = initpos;
+    while (true)
+    {
+        from = nextpos(board->trolls, from);
+        if (from.x == -1) break;
+
+        for (int dir = 0; dir < NUMDIRS; ++dir)
+        {
+            struct coord to = {from.x + DX[dir],
+                               from.y + DY[dir]};
+
+            if (! inbounds(to)) continue;
+
+            if (occupied(board, to)) break;
+
+            moves_considered += 1;
+            if (random() < LONG_MAX / moves_considered)
+            {
+                chosen_move = (struct move) {false, from, to, 0, {}};
+            }
+        }
+    }
+
+    return chosen_move;
+}
+
 
 struct moveheap heapof(struct thudboard * board, struct movelist * list)
 {
@@ -867,7 +1237,7 @@ int heuristic(struct thudboard * board)
 {
     return 4000 * board->numtrolls
            - 1000 * board->numdwarfs
-           - board->dwarfclump;
+           ; //- board->dwarfclump;
 }
 
 bool legalmove(struct thudboard * board, struct move * move)
@@ -1088,7 +1458,7 @@ void showmove(struct move * move)
 
 void placedwarf(struct thudboard * board, struct coord to)
 {
-    board->dwarfclump += countneighbors(board->dwarfs, to);
+    //board->dwarfclump += countneighbors(board->dwarfs, to);
     hashdwarf(board, to);
     set(board->dwarfs, to);
     board->numdwarfs += 1;
@@ -1098,7 +1468,7 @@ void placedwarfs(struct thudboard * board, int num, struct coord * tos)
 {
     for (int i=0; i < num; ++i)
     {
-        board->dwarfclump += countneighbors(board->dwarfs, tos[i]);
+        //board->dwarfclump += countneighbors(board->dwarfs, tos[i]);
         hashdwarf(board, tos[i]);
         set(board->dwarfs, tos[i]);
     }
@@ -1109,8 +1479,8 @@ void movedwarf(struct thudboard * board, struct coord from, struct coord to)
 {
     unset(board->dwarfs, from);
     hashdwarf(board, from);
-    board->dwarfclump -= countneighbors(board->dwarfs, from);
-    board->dwarfclump += countneighbors(board->dwarfs, to);
+    //board->dwarfclump -= countneighbors(board->dwarfs, from);
+    //board->dwarfclump += countneighbors(board->dwarfs, to);
     hashdwarf(board, to);
     set(board->dwarfs, to);
 }
@@ -1126,7 +1496,7 @@ void captdwarfs(struct thudboard * board, int num, struct coord * froms)
     {
         unset(board->dwarfs, froms[i]);
         hashdwarf(board, froms[i]);
-        board->dwarfclump -= countneighbors(board->dwarfs, froms[i]);
+        //board->dwarfclump -= countneighbors(board->dwarfs, froms[i]);
     }
     board->numdwarfs -= num;
 }
