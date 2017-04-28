@@ -87,7 +87,9 @@ struct move computermove(struct thudboard * board)
 
     puts("Thinking...");
     fflush(stdout);
-    move = iterdeepen(board, SEARCHSECS);
+    //move = iterdeepen(board, SEARCHSECS);
+    //move = beamiterdeepen(board, SEARCHSECS);
+    move = montecarlo(board, SEARCHSECS);
     showmove(& move);
 
     return move;
