@@ -382,6 +382,7 @@ struct move most_visited_move(struct thudboard * board, struct movelist list)
 
 int uct_search(struct thudboard * board)
 {
+    printf("uct_search\n");
     struct tableentry * entry = ttget(board->hash);
     if (! entry)
     {
@@ -390,8 +391,9 @@ int uct_search(struct thudboard * board)
         entry = ttget(board->hash);
     }
 
-    struct move chosen = highest_ucb1_move(board); //TODO check for no moves
-    //printf("chose move "); showmove(& chosen);
+    struct move chosen = highest_ucb1_move(board);
+    if (nullmove(chosen)) return 0;
+    printf("chose move "); showmove(& chosen);
     domove(board, & chosen);
 
     entry = ttget(board->hash);
@@ -404,10 +406,11 @@ int uct_search(struct thudboard * board)
     int value;
     if (entry->visited > 0)
     {
-        //printf("visited %d\n", entry->visited);
+        //show(board);
         value = uct_search(board);
         entry->visited += 1;
         entry->scoresum += value;
+        printf("node visited %d, total value %d\n", entry->visited, entry->scoresum);
     }
     else
     {
@@ -426,9 +429,11 @@ int uct_search(struct thudboard * board)
         //printf("value: %d\n", value);
         entry->visited = 1;
         entry->scoresum = value;
+        printf("new node, random playout value %d\n", value);
     }
 
     undomove(board, & chosen);
+    printf("undo move "); showmove(& chosen);
     return value;
 }
 
@@ -534,6 +539,7 @@ struct move highest_ucb1_dwarf_move(struct thudboard * board)
     }
 
     //printf("dwarf move no short-circuit\n");
+    //if (nullmove(chosen_move)) show(board);
     return chosen_move;
 }
 
