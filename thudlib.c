@@ -78,9 +78,9 @@ struct move iterdeepen(struct thudboard * board, int searchtime)
                  stoptime, stopsearch);
         bestmove = move;
 
-        //??? write to log?
-        //printf("best move at depth %d: ", depth);
-        //showmove(& bestmove);
+        // log to stderr
+        fprintf(stderr, "best move at depth %d: ", depth);
+        fshowmove(stderr, & bestmove);
     }
 
     return bestmove;
@@ -1065,25 +1065,35 @@ bool getpos(char ** input, struct coord * pos)
 
 char * cols = "ABCDEFGHJKLMNOP";
 
+void fshowpos(FILE * stream, struct coord pos)
+{
+    fprintf(stream, "%c%d", cols[pos.x], pos.y+1);
+}
+
 void showpos(struct coord pos)
 {
-    printf("%c%d", cols[pos.x], pos.y+1);
+    fshowpos(stdout, pos);
+}
+
+void fshowmove(FILE * stream, struct move * move)
+{
+    putc(move->isdwarfmove ? 'd' : 'T', stream);
+    putc(' ', stream);
+    fshowpos(stream, move->from);
+    fputs("-", stream);
+    fshowpos(stream, move->to);
+    for (int i=0; i < move->numcapts; ++i)
+    {
+        fputs("x", stream);
+        fshowpos(stream, move->capts[i]);
+    }
+    putc('\n', stream);
+    fflush(stream);
 }
 
 void showmove(struct move * move)
 {
-    putchar(move->isdwarfmove ? 'd' : 'T');
-    putchar(' ');
-    showpos(move->from);
-    fputs("-", stdout);
-    showpos(move->to);
-    for (int i=0; i < move->numcapts; ++i)
-    {
-        fputs("x", stdout);
-        showpos(move->capts[i]);
-    }
-    putchar('\n');
-    fflush(stdout);
+    fshowmove(stdout, move);
 }
 
 void placedwarf(struct thudboard * board, struct coord to)

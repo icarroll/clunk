@@ -7,28 +7,34 @@ def main(dwarfcmd=None, trollcmd=None):
 
     if dwarfcmd is None:
         dwarfcmd = raw_input("Dwarf player: ")
-    dwarf = Popen(dwarfcmd.split(), stdin=PIPE, stdout=PIPE)
-    print >>dwarf.stdin, "d"
 
     if trollcmd is None:
         trollcmd = raw_input("Troll player: ")
+
+    dwarf = Popen(dwarfcmd.split(), stdin=PIPE, stdout=PIPE)
+    print >>dwarf.stdin, "d"
     troll = Popen(trollcmd.split(), stdin=PIPE, stdout=PIPE)
     print >>troll.stdin, "T"
 
     print board.show()
+    sys.stdout.flush()
 
     while True:
         move = dwarf.stdout.readline()
-        troll.stdin.write(move)
         sys.stdout.write(move) ; sys.stdout.flush()
         board.do(Move.parse(move))
+        print move
         print board.show()
+        sys.stdout.flush()
+        troll.stdin.write(move)
 
         move = troll.stdout.readline()
-        dwarf.stdin.write(move)
         sys.stdout.write(move) ; sys.stdout.flush()
         board.do(Move.parse(move))
+        print move
         print board.show()
+        sys.stdout.flush()
+        dwarf.stdin.write(move)
 
 class ThudBoard:
     """
@@ -205,9 +211,9 @@ class Move:
         text = text.replace(" ", "").upper()
         side = text[0]
         if side == "D": side = "d"
-        fromtext = text[1:3]
-        totext = text[4:6]
-        capttexts = [c for c in text[8:].split("X") if c]
+        fromtotext = text[1:].split("X", 1)[0]
+        fromtext, totext = fromtotext.split("-")
+        capttexts = [c for c in text.split("X")[1:] if c]
 
         return Move(side, posstr(fromtext), posstr(totext), map(posstr, capttexts))
 
@@ -216,7 +222,7 @@ def strpos((x,y)):
 
 def posstr(text):
     x = ThudBoard.COLUMNS.find(text[0])
-    y = int(text[1]) - 1
+    y = int(text[1:]) - 1
     return (x,y)
 
 def _test():

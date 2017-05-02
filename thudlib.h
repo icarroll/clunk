@@ -7,6 +7,7 @@
 #include "move.h"
 
 #include <stdbool.h>
+#include <stdio.h>
 #include <limits.h>
 #include <time.h>
 #include <setjmp.h>
@@ -81,7 +82,9 @@ void undomove(struct thudboard * board, struct move * move);
 void domoveupdatecapts(struct thudboard * board, struct move * move);
 void skipspace(char ** input);
 bool getpos(char ** input, struct coord * pos);
+void fshowpos(FILE * stream, struct coord pos);
 void showpos(struct coord pos);
+void fshowmove(FILE * stream, struct move * move);
 void showmove(struct move * move);
 
 bool get(bitboard bits, struct coord pos);
