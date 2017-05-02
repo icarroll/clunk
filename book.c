@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <limits.h>
 
-enum {DEPTH = 4};
+enum {DEPTH = 5};
 
 FILE * book;
 
@@ -31,18 +31,20 @@ int main(int numargs, char * args[])
 
     for (int depth=2; depth <= DEPTH; depth += 1)
     {
+        printf("depth %d   ", depth); fflush(0);
+        system("date");
         absearch(board, depth, INT_MAX, INT_MIN, INT_MAX, NULL, 0, NULL);
-    }
 
-    book = fopen(BOOKFILENAME, "w");
-    for (int i=0; i < BTABLESIZE; ++i)
-    {
-        if (btable[i].hash != 0)
-        {
-            fwrite(& (btable[i]), sizeof(struct tableentry), 1, book);
-        }
+	book = fopen(BOOKFILENAME, "w");
+	for (int i=0; i < BTABLESIZE; ++i)
+	{
+	    if (btable[i].hash != 0)
+	    {
+		fwrite(& (btable[i]), sizeof(struct tableentry), 1, book);
+	    }
+	}
+	fclose(book);
     }
-    fclose(book);
 }
 
 // -----

@@ -7,22 +7,34 @@ def main(dwarfcmd=None, trollcmd=None):
 
     if dwarfcmd is None:
         dwarfcmd = raw_input("Dwarf player: ")
-    dwarf = Popen(dwarfcmd.split(), stdin=PIPE, stdout=PIPE)
-    print >>dwarf.stdin, "d"
 
     if trollcmd is None:
         trollcmd = raw_input("Troll player: ")
+
+    dwarf = Popen(dwarfcmd.split(), stdin=PIPE, stdout=PIPE)
+    print >>dwarf.stdin, "d"
     troll = Popen(trollcmd.split(), stdin=PIPE, stdout=PIPE)
     print >>troll.stdin, "T"
 
+    print board.show()
+    sys.stdout.flush()
+
     while True:
         move = dwarf.stdout.readline()
+        sys.stdout.write(move) ; sys.stdout.flush()
+        board.do(Move.parse(move))
+        print move
+        print board.show()
+        sys.stdout.flush()
         troll.stdin.write(move)
-        sys.stdout.write(move)
 
         move = troll.stdout.readline()
+        sys.stdout.write(move) ; sys.stdout.flush()
+        board.do(Move.parse(move))
+        print move
+        print board.show()
+        sys.stdout.flush()
         dwarf.stdin.write(move)
-        sys.stdout.write(move)
 
 class ThudBoard:
     """
@@ -189,13 +201,29 @@ class Move:
         self.capts = capts
 
     def __str__(self):
-        temp = [self.side, strpos(self.frompos), strpos(self.topos)]
+        temp = [self.side, strpos(self.frompos), "-", strpos(self.topos)]
         for capt in self.capts:
-            temp += ["x " + strpos(capt)]
+            temp += ["x", strpos(capt)]
         return " ".join(temp)
 
+    @classmethod
+    def parse(cls, text):
+        text = text.replace(" ", "").upper()
+        side = text[0]
+        if side == "D": side = "d"
+        fromtotext = text[1:].split("X", 1)[0]
+        fromtext, totext = fromtotext.split("-")
+        capttexts = [c for c in text.split("X")[1:] if c]
+
+        return Move(side, posstr(fromtext), posstr(totext), map(posstr, capttexts))
+
 def strpos((x,y)):
-    return Board.COLUMNS[x] + str(y+1)
+    return ThudBoard.COLUMNS[x] + str(y+1)
+
+def posstr(text):
+    x = ThudBoard.COLUMNS.find(text[0])
+    y = int(text[1:]) - 1
+    return (x,y)
 
 def _test():
     import doctest
