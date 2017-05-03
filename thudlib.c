@@ -329,8 +329,8 @@ struct move montecarlo(struct thudboard * board, int searchtime)
             domove(board, & bestmove);
             int visits = ttget(board->hash)->visited;
             undomove(board, & bestmove);
-            fprintf(stderr, "after %d seconds/%d playouts best move has %d visits: ",
-                    elapsed, playouts, visits);
+            fprintf(stderr, "after %d seconds/%d playouts best move has %d visit%s: ",
+                    elapsed, playouts, visits, pl(visits));
             fshowmove(stderr, & bestmove);
             progsecs += progsecs / 2;
         }
@@ -382,7 +382,7 @@ struct move most_visited_move(struct thudboard * board, struct movelist list)
 
 int uct_search(struct thudboard * board)
 {
-    printf("uct_search\n");
+    //printf("uct_search\n");
     struct tableentry * entry = ttget(board->hash);
     if (! entry)
     {
@@ -393,7 +393,7 @@ int uct_search(struct thudboard * board)
 
     struct move chosen = highest_ucb1_move(board);
     if (nullmove(chosen)) return 0;
-    printf("chose move "); showmove(& chosen);
+    //printf("chose move "); showmove(& chosen);
     domove(board, & chosen);
 
     entry = ttget(board->hash);
@@ -410,7 +410,7 @@ int uct_search(struct thudboard * board)
         value = uct_search(board);
         entry->visited += 1;
         entry->scoresum += value;
-        printf("node visited %d, total value %d\n", entry->visited, entry->scoresum);
+        //printf("node visited %d, total value %d\n", entry->visited, entry->scoresum);
     }
     else
     {
@@ -429,11 +429,11 @@ int uct_search(struct thudboard * board)
         //printf("value: %d\n", value);
         entry->visited = 1;
         entry->scoresum = value;
-        printf("new node, random playout value %d\n", value);
+        //printf("new node, random playout value %d\n", value);
     }
 
     undomove(board, & chosen);
-    printf("undo move "); showmove(& chosen);
+    //printf("undo move "); showmove(& chosen);
     return value;
 }
 
@@ -457,6 +457,7 @@ double ucb1(struct thudboard * board, struct move * move)
 
 struct move highest_ucb1_move(struct thudboard * board)
 {
+    //printf("highest_ucb1_move for %s\n", board->isdwarfturn ? "dwarf" : "troll");
     return board->isdwarfturn ? highest_ucb1_dwarf_move(board)
                               : highest_ucb1_troll_move(board);
 }
@@ -545,6 +546,7 @@ struct move highest_ucb1_dwarf_move(struct thudboard * board)
 
 struct move highest_ucb1_troll_move(struct thudboard * board)
 {
+    //printf("ucb1 troll moves\n");
     struct move chosen_move = (struct move) {false, {-1, -1}};
     double chosen_ucb1_score = INT_MIN;
 
@@ -585,11 +587,18 @@ struct move highest_ucb1_troll_move(struct thudboard * board)
                         }
 
                         double ucb1_score = ucb1(board, & candidate);
-                        if (ucb1_score == DBL_MAX) return candidate;
+                        if (ucb1_score == DBL_MAX)
+                        {
+                            //printf("max score, choosing move ");
+                            //showmove(& candidate);
+                            return candidate;
+                        }
                         if (ucb1_score > chosen_ucb1_score)
                         {
                             chosen_move = candidate;
                             chosen_ucb1_score = ucb1_score;
+                            //printf("%g score on move ", ucb1_score);
+                            //showmove(& chosen_move);
                         }
                     }
                 }
@@ -615,16 +624,26 @@ struct move highest_ucb1_troll_move(struct thudboard * board)
 
             struct move candidate = (struct move) {false, from, to, 0, {}};
             double ucb1_score = ucb1(board, & candidate);
-            if (ucb1_score == DBL_MAX) return candidate;
+            if (ucb1_score == DBL_MAX)
+            {
+                //printf("max score, choosing move ");
+                //showmove(& candidate);
+                return candidate;
+            }
             if (ucb1_score > chosen_ucb1_score)
             {
                 chosen_move = candidate;
                 chosen_ucb1_score = ucb1_score;
+                //printf("%g score on move ", ucb1_score);
+                //showmove(& chosen_move);
             }
         }
     }
 
     //printf("troll move no short-circuit\n");
+    //if (nullmove(chosen_move)) show(board);
+    //printf("choosing move ");
+    //showmove(& chosen_move);
     return chosen_move;
 }
 
@@ -1229,9 +1248,22 @@ void show(struct thudboard * board)
         {
             putchar(' ');
 
-            if (dwarfat(board, (struct coord) {x,y})) putchar('d');
-            else if (trollat(board, (struct coord) {x,y})) putchar('T');
-            else if (blockat(board, (struct coord) {x,y})) putchar('#');
+            struct coord coord = {x,y};
+            bool dwarf = dwarfat(board, coord);
+            bool troll = trollat(board, coord);
+            bool block = blockat(board, coord);
+
+            if (dwarf)
+            {
+                if (troll || block) putchar('?');
+                else putchar('d');
+            }
+            else if (trollat(board, coord))
+            {
+                if (block) putchar('?');
+                else putchar('T');
+            }
+            else if (blockat(board, coord)) putchar('#');
             else putchar('.');
         }
         putchar('\n');
