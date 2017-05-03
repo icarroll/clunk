@@ -329,9 +329,9 @@ struct move montecarlo(struct thudboard * board, int searchtime)
             domove(board, & bestmove);
             int visits = ttget(board->hash)->visited;
             undomove(board, & bestmove);
-            printf("after %d seconds (%d playouts) best move has %d visits: ",
-                   elapsed, playouts, visits);
-            showmove(& bestmove);
+            fprintf(stderr, "after %d seconds/%d playouts best move has %d visits: ",
+                    elapsed, playouts, visits);
+            fshowmove(stderr, & bestmove);
             progsecs += progsecs / 2;
         }
         uct_search(board);
