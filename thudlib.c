@@ -42,6 +42,26 @@ void setupgame(struct thudboard * board, int memuse)
     setup(board);
 }
 
+struct move montecarlo(struct thudboard * board, int searchtime)
+{
+    struct move bestmove;
+
+    struct thudboard tempboard = * board;
+    time_t stoptime = time(NULL) + searchtime;
+
+    jmp_buf stopsearch;
+    if (setjmp(stopsearch) == 0) while (true)
+    {
+        mc_simulate();
+    }
+
+    return bestmove;
+}
+
+void mc_simulate(void)
+{
+}
+
 struct move BROKEiterdeepen(struct thudboard * board, int searchtime)
 {
     struct move bestmove;
