@@ -32,7 +32,7 @@ int main(int numargs, char * args[])
     for (int depth=2; depth <= DEPTH; depth += 1)
     {
         printf("depth %d   ", depth); fflush(0);
-        system("date");
+        int _ = system("date");
         absearch(board, depth, INT_MAX, INT_MIN, INT_MAX, NULL, 0, NULL);
 
 	book = fopen(BOOKFILENAME, "w");
