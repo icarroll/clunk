@@ -52,10 +52,15 @@ struct move montecarlo(struct thudboard * board, int searchtime)
     jmp_buf stopsearch;
     if (setjmp(stopsearch) == 0) while (true)
     {
+        mc_traverse(board);
         mc_simulate();
     }
 
     return bestmove;
+}
+
+void mc_traverse(struct thudboard * board)
+{
 }
 
 void mc_simulate(void)
