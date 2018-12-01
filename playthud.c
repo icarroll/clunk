@@ -47,8 +47,8 @@ struct move getmove(void)
     struct move move;
 
     char * line = NULL;
-    int size = 0;
-    getline(& line, & size, stdin);
+    size_t size = 0;
+    int _ = getline(& line, & size, stdin);
 
     char * cur = line;
 
