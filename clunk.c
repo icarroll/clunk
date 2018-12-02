@@ -9,7 +9,7 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
-enum {SEARCHSECS = 30};
+enum {SEARCHSECS = 1};
 
 void setupsides(void);
 struct move humanmove(struct thudboard * board);
@@ -36,7 +36,8 @@ int main(int numargs, char * args[])
     using_history();
     setupsides();
 
-    while (true)
+    int moves_since_capt = 0;
+    while (moves_since_capt <= 10)
     {
         putchar('\n');
         show(board);
@@ -46,7 +47,12 @@ int main(int numargs, char * args[])
         //time_t elapsed = time(NULL) - start;
         //printf("Thinking took %d second%s.\n", elapsed, pl(elapsed));
         domoveupdatecapts(board, & move);
+
+        if (move.numcapts) moves_since_capt = 0;
+        else moves_since_capt += 1;
     }
+
+    printf("game over, final score: dwarf=%d, troll=%d\n", board->trollscaptured*4, board->dwarfscaptured);
 }
 
 void setupsides(void)
