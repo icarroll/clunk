@@ -1,3 +1,4 @@
+#include "mcts.h"
 #include "ttable.h"
 #include "thudlib.h"
 
@@ -9,7 +10,7 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
-enum {SEARCHSECS = 1};
+enum {SEARCHSECS = 60};
 
 void setupsides(void);
 struct move humanmove(struct thudboard * board);
@@ -22,6 +23,8 @@ typedef struct move movefunc_t(struct thudboard *);
 movefunc_t * movefuncs[] = {computermove, computermove};
 
 struct thudboard board_data;
+
+extern int eval_count;
 
 int main(int numargs, char * args[])
 {
@@ -37,16 +40,20 @@ int main(int numargs, char * args[])
     setupsides();
 
     int moves_since_capt = 0;
-    while (moves_since_capt <= 10)
+    while (moves_since_capt <= DRAW_DEADLINE)
     {
         putchar('\n');
         show(board);
+
+        eval_count = 0;
 
         //time_t start = time(NULL);
         move = movefuncs[board->isdwarfturn ? DWARF : TROLL](board);
         //time_t elapsed = time(NULL) - start;
         //printf("Thinking took %d second%s.\n", elapsed, pl(elapsed));
         domoveupdatecapts(board, & move);
+
+        //printf("evaluated %d board positions\n", eval_count);
 
         if (move.numcapts) moves_since_capt = 0;
         else moves_since_capt += 1;
@@ -93,7 +100,8 @@ struct move computermove(struct thudboard * board)
 
     puts("Thinking...");
     fflush(stdout);
-    move = iterdeepen(board, SEARCHSECS);
+    // move = iterdeepen(board, SEARCHSECS);
+    move = montecarlo(board, SEARCHSECS);
     showmove(& move);
 
     return move;

@@ -23,6 +23,8 @@ struct genstate
     struct move move;
 };
 
+enum {DRAW_DEADLINE = 10};
+
 enum {FULL_WIDTH = INT_MAX};
 
 void setupgame(struct thudboard * board, int memuse);
@@ -74,6 +76,7 @@ char * pl(int n);
 void show(struct thudboard * board);
 int evaluate(struct thudboard * board);
 int heuristic(struct thudboard * board);
+int score_game(struct thudboard * board);
 bool legalmove(struct thudboard * board, struct move * move);
 bool legaldwarfmove(struct thudboard * board, struct move * move);
 bool legaltrollmove(struct thudboard * board, struct move * move);
