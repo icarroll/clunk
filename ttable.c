@@ -16,6 +16,10 @@ hash_t randomhash(void)
 
 void inithash(void)
 {
+    // hashes should be "random" yet must be the same every run
+    // otherwise the opening book file will be unusable
+    srandom(1);
+
     turnhash = randomhash();
 
     for (int i=0; i < SIZE*SIZE; ++i)

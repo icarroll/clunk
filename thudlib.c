@@ -42,31 +42,6 @@ void setupgame(struct thudboard * board, int memuse)
     setup(board);
 }
 
-struct move montecarlo(struct thudboard * board, int searchtime)
-{
-    struct move bestmove;
-
-    struct thudboard tempboard = * board;
-    time_t stoptime = time(NULL) + searchtime;
-
-    jmp_buf stopsearch;
-    if (setjmp(stopsearch) == 0) while (true)
-    {
-        mc_traverse(board);
-        mc_simulate();
-    }
-
-    return bestmove;
-}
-
-void mc_traverse(struct thudboard * board)
-{
-}
-
-void mc_simulate(void)
-{
-}
-
 struct move BROKEiterdeepen(struct thudboard * board, int searchtime)
 {
     struct move bestmove;
@@ -822,6 +797,7 @@ void setup(struct thudboard * board)
     erase(board);
 
     board->isdwarfturn = true;
+    board->captless = 0;
 
     for (int y=0; y < SIZE; ++y)
     {
@@ -881,8 +857,11 @@ void show(struct thudboard * board)
     fflush(stdout);
 }
 
+int eval_count = 0;
+
 int evaluate(struct thudboard * board)
 {
+    eval_count += 1;
     struct tableentry * entry = ttget(board->hash);
     if (entry) return entry->scoreguess;
     else return heuristic(board);
@@ -893,6 +872,12 @@ int heuristic(struct thudboard * board)
     return 4000 * board->numtrolls
            - 1000 * board->numdwarfs
            - board->dwarfclump;
+}
+
+int score_game(struct thudboard * board)
+{
+    return 4000 * board->numtrolls
+           - 1000 * board->numdwarfs;
 }
 
 bool legalmove(struct thudboard * board, struct move * move)
@@ -1034,12 +1019,17 @@ bool legaltrollmove(struct thudboard * board, struct move * move)
 
 void domove(struct thudboard * board, struct move * move)
 {
+    if (move->numcapts) board->captless = 0;
+    else board->captless += 1;
+
     if (board->isdwarfturn) dodwarf(board, move);
     else dotroll(board, move);
 }
 
 void undomove(struct thudboard * board, struct move * move)
 {
+    //TODO undo board->captless somehow
+
     if (board->isdwarfturn) undotroll(board, move);
     else undodwarf(board, move);
 }

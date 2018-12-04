@@ -28,6 +28,8 @@ struct thudboard
 
     int dwarfscaptured;
     int trollscaptured;
+
+    int captless;
 };
 
 #endif // BOARD_H

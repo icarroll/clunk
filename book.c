@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <limits.h>
 
-enum {DEPTH = 5};
+enum {DEPTH = 7};   // takes about 40 minutes on a fast machine
 
 FILE * book;
 
