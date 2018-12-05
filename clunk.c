@@ -9,7 +9,7 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
-enum {SEARCHSECS = 1};
+enum {SEARCHSECS = 10};
 
 void setupsides(void);
 struct move humanmove(struct thudboard * board);
