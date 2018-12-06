@@ -42,6 +42,7 @@ void setupgame(struct thudboard * board, long memuse)
     setup(board);
 }
 
+/*
 struct move BROKEiterdeepen(struct thudboard * board, int searchtime)
 {
     struct move bestmove;
@@ -115,10 +116,8 @@ struct move beamiterdeepen(struct thudboard * board, int searchtime)
                  stoptime, stopsearch);
         bestmove = move;
 
-        /*
         //??? won't work without a ttable fix of some kind
-        bestmove = zerowindow(& tempboard, depth, stoptime, stopsearch);
-        */
+        //bestmove = zerowindow(& tempboard, depth, stoptime, stopsearch);
 
         //??? write to log?
         //printf("best width 20 move at depth %d: ", depth);
@@ -191,6 +190,7 @@ int _mtdf(struct thudboard * board, int depth,
 
     return guess;
 }
+*/
 
 static int max(int a, int b)
 {
@@ -202,6 +202,7 @@ static int min(int a, int b)
     return a < b ? a : b;
 }
 
+/*
 int absearch(struct thudboard * board, int depth, int width,
              int trmin, int dwmax, struct move * bestmove,
              time_t stoptime, jmp_buf stopsearch)
@@ -308,6 +309,7 @@ search:
 
     return (isdwarfturn ^ cutoff) ? dwmax : trmin;
 }
+*/
 
 /*
 int BROKEabsearch(struct thudboard * board, int depth, int width,

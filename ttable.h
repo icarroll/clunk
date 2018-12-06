@@ -5,11 +5,8 @@
 struct tableentry
 {
     hash_t hash;
-    int depth;
-    int worth;
-    int scoreguess;
-    int min;
-    int max;
+    double scoreguess;
+    double visits;
 };
 
 void initttable(long memuse);

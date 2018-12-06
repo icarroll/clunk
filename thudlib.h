@@ -29,6 +29,7 @@ enum {FULL_WIDTH = INT_MAX};
 
 void setupgame(struct thudboard * board, long memuse);
 
+/*
 struct move iterdeepen(struct thudboard * board, int searchtime);
 struct move zerowindow(struct thudboard * board, int depth,
                        time_t stoptime, jmp_buf stopsearch);
@@ -40,6 +41,7 @@ int _mtdf(struct thudboard * board, int depth,
 int absearch(struct thudboard * board, int depth, int width,
              int trmin, int dwmax, struct move * bestmove,
              time_t stoptime, jmp_buf stopsearch);
+*/
 
 struct moveheap heapof(struct thudboard * board, struct movelist * list);
 struct movelist allmoves(struct thudboard * board);
