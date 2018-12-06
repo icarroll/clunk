@@ -1,13 +1,13 @@
-#include "ttable.h"
-#include "thudlib.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <time.h>
 #include <setjmp.h>
-#include <readline/readline.h>
-#include <readline/history.h>
+
+#include "linenoise.h"
+
+#include "ttable.h"
+#include "thudlib.h"
 
 enum {SEARCHSECS = 10};
 
@@ -33,7 +33,6 @@ int main(int numargs, char * args[])
 
     setupgame(board, memuse);
 
-    using_history();
     setupsides();
 
     int moves_since_capt = 0;
@@ -59,7 +58,8 @@ void setupsides(void)
 {
     char * answer;
 sideagain:
-    answer = readline("Would you like to play Dwarf or Troll?\n");
+    printf("Would you like to play Dwarf or Troll?\n");
+    answer = linenoise("");
     if (! answer) exit(EXIT_SUCCESS);
 
     char c = toupper(answer[0]);
@@ -105,11 +105,12 @@ struct move getmove(char * prompt)
 
     char * line = NULL;
 retry:
-    line = readline(prompt);
+    printf("%s", prompt);
+    line = linenoise("");
 
     if (line)
     {
-        if (* line) add_history(line);
+        if (* line) linenoiseHistoryAdd(line);
         else
         {
             free(line);

@@ -1,8 +1,7 @@
 CFLAGS = -O3 -std=gnu99
-LDLIBS = -lreadline
 
 TARGETS = clunk book playthud
-OBJS = thudlib.o heap.o list.o
+OBJS = thudlib.o heap.o list.o linenoise.o
 
 .PHONY: all
 all: $(TARGETS)
