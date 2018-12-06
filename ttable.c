@@ -44,7 +44,7 @@ void hashtroll(struct thudboard * board, struct coord pos)
     board->hash ^= trollhash[pos.y*SIZE + pos.x];
 }
 
-int TTABLESIZE;
+long TTABLESIZE;
 struct tableentry * ttable;
 
 int ttindex(hash_t hash)
@@ -52,7 +52,7 @@ int ttindex(hash_t hash)
     return hash % TTABLESIZE;
 }
 
-void initttable(int memuse)
+void initttable(long memuse)
 {
     TTABLESIZE = memuse / sizeof(struct tableentry);
 

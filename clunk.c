@@ -31,9 +31,12 @@ int main(int numargs, char * args[])
     struct thudboard * board = & board_data;
     struct move move;
 
+    /*
     int memuse = 1024 * 1024 * (numargs > 1 ? strtol(args[1], NULL, 10)
                                             : sizeof(struct tableentry));
+    */
 
+    long memuse = 4l * 1024 * 1024 * 1024;
     setupgame(board, memuse);
 
     using_history();

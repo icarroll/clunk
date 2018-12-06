@@ -1,5 +1,4 @@
-#ifndef TTABLE_H
-#define TTABLE_H
+#pragma once
 
 #include "thudlib.h"
 
@@ -13,8 +12,6 @@ struct tableentry
     int max;
 };
 
-void initttable(int memuse);
+void initttable(long memuse);
 void ttput(struct tableentry entry);
 struct tableentry * ttget(hash_t hash);
-
-#endif // TTABLE_H

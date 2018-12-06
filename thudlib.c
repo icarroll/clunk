@@ -35,7 +35,7 @@ char * stdlayout[] =
     "#####dd.dd#####",
 };
 
-void setupgame(struct thudboard * board, int memuse)
+void setupgame(struct thudboard * board, long memuse)
 {
     inithash();
     initttable(memuse);
