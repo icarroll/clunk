@@ -7,6 +7,7 @@ struct tableentry
     hash_t hash;
     double scoreguess;
     double visits;
+    struct genstate ctx;
 };
 
 void initttable(long memuse);
