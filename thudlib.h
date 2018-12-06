@@ -80,6 +80,7 @@ int score_game(struct thudboard * board);
 bool legalmove(struct thudboard * board, struct move * move);
 bool legaldwarfmove(struct thudboard * board, struct move * move);
 bool legaltrollmove(struct thudboard * board, struct move * move);
+bool gameover(struct thudboard * board);
 void domove(struct thudboard * board, struct move * move);
 void undomove(struct thudboard * board, struct move * move);
 void domoveupdatecapts(struct thudboard * board, struct move * move);

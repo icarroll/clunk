@@ -5,30 +5,29 @@
 #include "mctree.h"
 #include "mcts.h"
 
-int curdepth;
-int deepest;   // longest sequence of moves explored (sans rollouts)
-int visited;   // total nodes visited
+// TODO move this into game state struct
+int movenum = 0;   // move number of game
+int lastcapt = 0;   // move number of last capture
 
-struct mctreenode * root;
+int farthest;   // highest movenum visited this search
+int visited;   // total nodes visited
 
 struct move montecarlo(struct thudboard * board, int searchtime) {
     time_t stoptime = time(NULL) + searchtime;
 
-    if (! root) {
-        root = malloc(sizeof(struct mctreenode));
-        initmctree(root, board);
-    }
+    struct mctreenode * root = malloc(sizeof(struct mctreenode));
+    initmctree(root, board);
 
-    deepest = curdepth = 0;
+    farthest = movenum;
     visited = 1;
 
     jmp_buf stopsearch;
     if (setjmp(stopsearch) == 0) while (time(NULL) < stoptime)
     {
-        mcts_step(root);
+        mcts_step(root, movenum, lastcapt);
     }
 
-    printf("visited %d nodes with max depth %d\n", visited, deepest);
+    printf("visited %d nodes with max depth %d\n", visited, farthest-movenum);
 
     // choose most visited child as move to make
     struct move bestmove = root->allmoves.moves[0];
@@ -43,18 +42,19 @@ struct move montecarlo(struct thudboard * board, int searchtime) {
 
     printf("freeing tree\n"); fflush(stdout);
     closemctree(root); //TODO reuse relevant subtree
+    free(root);
     printf("freed tree\n"); fflush(stdout);
 
     return bestmove;
 }
 
-double mcts_step(struct mctreenode * node) {
-    curdepth += 1; if (curdepth > deepest) deepest = curdepth;
+double mcts_step(struct mctreenode * node, int movenum, int lastcapt) {
+    if (movenum > farthest) farthest = movenum;
 
     node->visits += 1;
     visited += 1;   // count all nodes visited
 
-    if (node->boardstate.captless > 10) {
+    if (movenum - lastcapt > DRAW_DEADLINE) {
         // terminal node, game over
         return (double) score_game(& node->boardstate);
     }
@@ -88,13 +88,14 @@ double mcts_step(struct mctreenode * node) {
             }
         }
 
-        guess = mcts_step(& node->children[choice]);
+        int newmovenum = movenum + 1;
+        int newlastcapt = node->allmoves.moves[choice].numcapts
+                          ? newmovenum : lastcapt;
+        guess = mcts_step(& node->children[choice], newmovenum, newlastcapt);
     }
 
     node->scoreguess = guess / node->visits
                        + node->scoreguess * (node->visits-1) / node->visits;
-
-    curdepth -= 1;
 
     return guess;
 }

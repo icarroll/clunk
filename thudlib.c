@@ -797,7 +797,6 @@ void setup(struct thudboard * board)
     erase(board);
 
     board->isdwarfturn = true;
-    board->captless = 0;
 
     for (int y=0; y < SIZE; ++y)
     {
@@ -1019,17 +1018,12 @@ bool legaltrollmove(struct thudboard * board, struct move * move)
 
 void domove(struct thudboard * board, struct move * move)
 {
-    if (move->numcapts) board->captless = 0;
-    else board->captless += 1;
-
     if (board->isdwarfturn) dodwarf(board, move);
     else dotroll(board, move);
 }
 
 void undomove(struct thudboard * board, struct move * move)
 {
-    //TODO undo board->captless somehow
-
     if (board->isdwarfturn) undotroll(board, move);
     else undodwarf(board, move);
 }
