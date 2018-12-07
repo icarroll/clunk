@@ -23,6 +23,8 @@ struct thudboard
     int numtrolls;
 
     int dwarfclump;
+    int trollclump;
+    int trollmobile;
 
     hash_t hash;
 

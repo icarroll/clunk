@@ -863,11 +863,78 @@ int evaluate(struct thudboard * board)
     else return heuristic(board);
 }
 
-int heuristic(struct thudboard * board)
+int oldheuristic(struct thudboard * board)
 {
     return 4000 * board->numtrolls
            - 1000 * board->numdwarfs
            - board->dwarfclump;
+}
+
+/*
+    // Calibration values.
+    int dwarfMaterialRatio = 13;
+    int trollMaterialRatio = 15;
+    int dwarfClusteringRatio = 0;
+    int trollClusteringRatio = 2;
+    int dwarfMobilityRatio = 0;
+    int trollMobilityRatio = 1;
+    int absoluteVictoryBonus = 172;
+
+@Override
+    public int evaluate(Board evaluatedBoard)
+    {
+        int result;
+
+        int numberOfDwarves = evaluatedBoard.numberOf(DWARF);
+        int numberOfTrolls = evaluatedBoard.numberOf(TROLL);
+
+        // Pure material advantage
+        int materialAdvantage = dwarfMaterialRatio * numberOfDwarves - trollMaterialRatio * numberOfTrolls;
+        result = materialAdvantage;
+
+        // Clustering values;
+        int dwarfClusteringValue = evaluatedBoard.getPiecesStream(DWARF).mapToInt(dwarf -> evaluatedBoard.getNearby(DWARF, dwarf.width, dwarf.height).size()).sum();
+        int trollClusteringValue = evaluatedBoard.getPiecesStream(TROLL).mapToInt(troll -> evaluatedBoard.getNearby(TROLL, troll.width, troll.height).size()).sum();
+        result += dwarfClusteringRatio * dwarfClusteringValue - trollClusteringRatio * trollClusteringValue;
+
+        // Mobility
+        int dwarfMobilityValue = 0, trollMobilityValue = 0;
+
+        evaluatedBoard.getPiecesStream(DWARF)
+            .map(pieceToMove -> evaluatedBoard.validMoves(pieceToMove.width, pieceToMove.height, null))
+            .mapToInt(List::size)
+            .sum();
+
+        trollMobilityValue = evaluatedBoard.getPiecesStream(TROLL)
+            .map(pieceToMove -> evaluatedBoard.validMoves(pieceToMove.width, pieceToMove.height, null))
+            .mapToInt(List::size)
+            .sum();
+
+        result += dwarfMobilityRatio * dwarfMobilityValue - trollMobilityRatio * trollMobilityValue;
+
+        // If there's no piece left, add a big malus/bonus.
+        if (numberOfTrolls == 0)
+        {
+            result += absoluteVictoryBonus;
+        }
+        else if (numberOfDwarves == 0)
+        {
+            result -= absoluteVictoryBonus;
+        }
+
+        return evaluatedBoard.dwarvesTurn ? result : -result;
+    }
+*/
+
+int newheuristic(struct thudboard * board) {
+    return 1154 * board->numtrolls
+           + 154 * board->trollclump
+           //+ 77 * board->trollmobile
+           - 1000 * board->numdwarfs;
+}
+
+int heuristic(struct thudboard * board) {
+    return oldheuristic(board);
 }
 
 bool legalmove(struct thudboard * board, struct move * move)
@@ -1108,6 +1175,7 @@ void placedwarfs(struct thudboard * board, int num, struct coord * tos)
 {
     for (int i=0; i < num; ++i)
     {
+        //TODO this possibly miscounts dwarfclump
         board->dwarfclump += countneighbors(board->dwarfs, tos[i]);
         hashdwarf(board, tos[i]);
         set(board->dwarfs, tos[i]);
@@ -1136,6 +1204,7 @@ void captdwarfs(struct thudboard * board, int num, struct coord * froms)
     {
         unset(board->dwarfs, froms[i]);
         hashdwarf(board, froms[i]);
+        //TODO this possibly miscounts dwarfclump
         board->dwarfclump -= countneighbors(board->dwarfs, froms[i]);
     }
     board->numdwarfs -= num;
@@ -1143,6 +1212,7 @@ void captdwarfs(struct thudboard * board, int num, struct coord * froms)
 
 void placetroll(struct thudboard * board, struct coord to)
 {
+    //board->trollclump += countneighbors(board->trolls, to);
     hashtroll(board, to);
     set(board->trolls, to);
     board->numtrolls += 1;
@@ -1152,6 +1222,8 @@ void movetroll(struct thudboard * board, struct coord from, struct coord to)
 {
     unset(board->trolls, from);
     hashtroll(board, from);
+    //board->trollclump -= countneighbors(board->trolls, from);
+    //board->trollclump += countneighbors(board->trolls, to);
     hashtroll(board, to);
     set(board->trolls, to);
 }
