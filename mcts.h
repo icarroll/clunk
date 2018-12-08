@@ -6,6 +6,7 @@
 
 struct move montecarlo(struct thudboard * board, int searchtime);
 double mcts_step(struct thudboard * board, int movenum, int lastcapt);
-double ucb1(double parent_visits, struct mctreenode * node);
-double teamscale(struct mctreenode * node);
-double mcts_simulate(struct mctreenode * node);
+double ucb1(double scoreguess, int parent_visits, bool isdwarfturn,
+            int child_visits);
+double teamscale(bool isdwarfturn);
+double mcts_simulate(struct thudboard * board);

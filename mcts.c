@@ -68,66 +68,86 @@ double mcts_step(struct thudboard * board, int movenum, int lastcapt) {
 
     struct tableentry * entry = ttget(board->hash);
     if (! entry) {
-        // first visit, put table entry
-        struct genstate ctx; ctx.resume = NULL;
-        ttput((struct tableentry) {board->hash, 0, 0, ctx});
+        // create basic ttable entry
+        double guess = heuristic(board);
+        struct genstate ctx = newctx();
+        ttput((struct tableentry) {board->hash, guess, 0, ctx, false});
         entry = ttget(board->hash);
     }
 
     entry->visits += 1;
 
     double guess;
-    if (node->unexplored_moves) {
+    if (! entry->genfinished) {
         // some children remain unvisited, visit an unvisited child
-        int ix = node->allmoves.used - node->unexplored_moves;
-        node->unexplored_moves -= 1;
-
-        struct mctreenode * child = & node->children[ix];
-
-        struct thudboard board = node->boardstate;
-        struct move move = node->allmoves.moves[ix];
-        domove(& board, & move);
-
-        initmctree(child, & board);
-
-        guess = mcts_simulate(child);
-        child->scoreguess = guess;
-    }
-    else {
-        // all children visited at least once, pick most promising via UCB1
-        int choice = 0;
-        double value = ucb1(node->visits, & node->children[choice]);
-        for (int ix=0 ; ix<node->allmoves.used ; ix+=1) {
-            double tryvalue = ucb1(node->visits, & node->children[ix]);
-            if (tryvalue > value) {
-                choice = ix;
-                value = tryvalue;
-            }
+        struct move move = nextplay(board, & entry->ctx);
+        if (entry->ctx.resume == NULL) {
+            entry->genfinished = true;
+            goto actuallyfinished;
         }
 
+        domove(board, & move);
+        guess = mcts_simulate(board);
+        undomove(board, & move);
+    }
+    else {
+        struct movelist moves;   // keep the compiler happy about goto targets
+actuallyfinished:
+        // all children visited at least once, pick most promising via UCB1
+        moves = allmoves(board);
+        int bestix;
+        double bestucb1 = -INFINITY;
+        for (int ix=0 ; ix<moves.used ; ix+=1) {
+            domove(board, & moves.moves[ix]);
+
+            struct tableentry * childentry = ttget(board->hash);
+            if (! childentry) {
+                // create basic ttable entry
+                double childguess = heuristic(board);
+                struct genstate childctx = newctx();
+                ttput((struct tableentry)
+                        {board->hash, childguess, 1, childctx, false});
+                childentry = ttget(board->hash);
+            }
+
+            double tryucb1 = ucb1(entry->scoreguess, entry->visits, board->isdwarfturn, childentry->visits);
+            if (tryucb1 > bestucb1) {
+                bestix = ix;
+                bestucb1 = tryucb1;
+            }
+
+            undomove(board, & moves.moves[ix]);
+        }
+
+        struct move move = moves.moves[bestix];
+        closelist(& moves);
+
         int newmovenum = movenum + 1;
-        int newlastcapt = node->allmoves.moves[choice].numcapts
+        int newlastcapt = move.numcapts
                           ? newmovenum : lastcapt;
-        guess = mcts_step(& node->children[choice], newmovenum, newlastcapt);
+        domove(board, & move);
+        guess = mcts_step(board, newmovenum, newlastcapt);
+        undomove(board, & move);
     }
 
-    node->scoreguess = guess / node->visits
-                       + node->scoreguess * (node->visits-1) / node->visits;
+    entry->scoreguess = guess / entry->visits
+                        + entry->scoreguess * (entry->visits-1) / entry->visits;
 
     return guess;
 }
 
-double ucb1(double parent_visits, struct mctreenode * node) {
-    return node->scoreguess * teamscale(node)
-           + UCTK * sqrt(2 * log(parent_visits) / node->visits);
+double ucb1(double scoreguess, int parent_visits, bool isdwarfturn,
+            int child_visits) {
+    return scoreguess * teamscale(isdwarfturn)
+           + UCTK * sqrt(2 * log((double) parent_visits)
+                         / (double) child_visits);
 }
 
-double teamscale(struct mctreenode * node) {
-    return (node->boardstate.isdwarfturn ? 1.0 : -1.0) / (1000.0 * 32.0);
+double teamscale(bool isdwarfturn) {
+    return (isdwarfturn ? 1.0 : -1.0) / (1000.0 * 32.0);
 }
 
-double mcts_simulate(struct mctreenode * node) {
+double mcts_simulate(struct thudboard * board) {
     // no rollout, just heuristic eval
-    return (double) heuristic(& node->boardstate);
+    return (double) heuristic(board);
 }
-

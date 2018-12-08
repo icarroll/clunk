@@ -47,6 +47,8 @@ struct moveheap heapof(struct thudboard * board, struct movelist * list);
 struct movelist allmoves(struct thudboard * board);
 void addmoves(int num, struct thudboard * board, struct genstate * ctx,
               struct movelist * list, struct moveheap * queue);
+struct genstate newctx(void);
+struct move nextplay(struct thudboard * board, struct genstate * ctx);
 
 struct movelist alldwarfmoves(struct thudboard * board);
 struct move nextdwarfplay(struct thudboard * board, struct genstate * ctx);

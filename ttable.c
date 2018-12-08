@@ -84,6 +84,7 @@ void ttput(struct tableentry newentry)
 {
     int index = ttindex(newentry.hash);
     struct tableentry * entry = & ttable[index];
+    * entry = newentry;
 }
 
 struct tableentry * ttget(hash_t hash)

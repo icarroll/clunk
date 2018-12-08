@@ -454,6 +454,15 @@ void addmoves(int num, struct thudboard * board, struct genstate * ctx,
     }
 }
 
+struct genstate newctx(void) {
+    return (struct genstate) {NULL};
+}
+
+struct move nextplay(struct thudboard * board, struct genstate * ctx) {
+    return board->isdwarfturn ? nextdwarfplay(board, ctx)
+                              : nexttrollplay(board, ctx);
+}
+
 static bool occupied(struct thudboard * board, struct coord pos)
 {
     return dwarfat(board, pos) || trollat(board, pos) || blockat(board, pos);

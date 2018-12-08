@@ -8,6 +8,7 @@ struct tableentry
     double scoreguess;
     int visits;
     struct genstate ctx;
+    bool genfinished;
 };
 
 void initttable(long memuse);
