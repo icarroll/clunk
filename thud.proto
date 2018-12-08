@@ -1,0 +1,113 @@
+syntax = "proto3";
+package clacks.thud;
+
+// The role of a player in the game.
+enum PlayerRole {
+  UNKNOWN = 0;  // Protobuf best practice.
+  DWARF = 1;
+  TROLL = 2;
+}
+
+// A player who can take turns in the game.
+message Player {
+  // Identifies which pieces the player can control.
+  PlayerRole role = 1;
+
+  // Optional identifier for whoever is controlling the player.
+  string name = 2;
+}
+
+// The type of a token on the gameboard.
+enum TokenType {
+  UNKNOWN = 0;  // Protobuf best practice.
+  DWARF = 1;
+  TROLL = 2;
+  THUDSTONE = 3;
+}
+
+// A token on the gameboard.
+message TokenPosition {
+  TokenType token = 1;
+  uint32 row = 2;
+  uint32 column = 3;
+}
+
+// The complete state of a game of Thud.
+message ThudState {
+  // Optional human-readable description, for debugging and testing.
+  string description = 1;
+
+  // 0-based count of turns already elapsed. (On the first turn of the game,
+  // this has a value of 0.)
+  uint32 turn_count = 2;
+
+  // The player whose turn it is.
+  Player current_player = 3;
+
+  // Tokens in play.
+  repeated TokenPosition tokens = 4;
+
+  // Tokens which have been captured.
+  repeated TokenType captured_tokens = 5;
+}
+
+// A move in the game of Thud.
+message Move {
+  // The turn number that this move is intended for. On the first turn of the
+  // game this should be zero, on the second turn it should be one, etc.
+  uint32 turn_number = 1;
+
+  // Current row of the piece to move.
+  uint32 from_row = 2;
+
+  // Current column of the piece to move.
+  uint32 from_column = 3;
+
+  // Destionation row of the piece to move.
+  uint32 to_row = 4;
+
+  // Destination column of the piece to move.
+  uint32 to_column = 5;
+}
+
+message GetStateReply {
+  // The current Thud state. If there was an error in retrieving the game state,
+  // this field may not have a value.
+  State state = 1;
+
+  // This field should be set if and only if there was an error in retrieving
+  // the game state. It should describe the error in a human-readable message.
+  string error_description = 2;
+}
+
+message SetStateReply {
+  // This field should be set if and only if there was an error in setting the
+  // game state. It should describe the error in a human-readable message.
+  string error_description = 1;
+}
+
+message ProposeMoveReply {
+  // This field should be set if and only if there was an error in handling the
+  // proposed move. It should describe the error in a human-readable message.
+  string error_description = 1;
+}
+
+// This interface provides methods for setting the state of a Thud board and
+// providing moves to it.
+//
+// This is a "simple" agent because it sacrifices extensibility for
+// simplicity. (It would be better practice for each service method to take a
+// Request message that wraps all of its arguments, so that method parameters
+// can be added in the future, instead of fixing the argument to be a game data
+// object. But that would result in undesirable boilerplate when calling these
+// methods.)
+service SimpleAgent {
+  // Returns the current game state.
+  rpc GetState () returns (GetStateReply) {}
+
+  // Sets the game state to be State.
+  rpc SetState (ThudState) returns (SetStateReply) {}
+
+  // Proposes an update to the game state.
+  rpc ProposeMove (Move) returns (ProposeMoveReply) {}
+}
