@@ -138,9 +138,10 @@ actuallyfinished:
 
 double ucb1(double scoreguess, int parent_visits, bool isdwarfturn,
             int child_visits) {
-    return scoreguess * teamscale(isdwarfturn)
-           + UCTK * sqrt(2 * log((double) parent_visits)
+    double exploit = scoreguess * teamscale(isdwarfturn);
+    double explore = sqrt(2 * log((double) parent_visits)
                          / (double) child_visits);
+    return exploit + UCTK * explore;
 }
 
 double teamscale(bool isdwarfturn) {

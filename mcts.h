@@ -2,7 +2,7 @@
 
 #include "mctree.h"
 
-#define UCTK 1.0
+#define UCTK 10e-19
 
 struct move montecarlo(struct thudboard * board, int searchtime);
 double mcts_step(struct thudboard * board, int movenum, int lastcapt);

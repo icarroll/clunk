@@ -1,5 +1,5 @@
-# CFLAGS = -O3 -std=gnu99
-CFLAGS = -g -std=gnu99
+CFLAGS = -O3 -std=gnu99
+# CFLAGS = -g -std=gnu99
 LDLIBS = -lreadline -lm
 
 TARGETS = clunk
