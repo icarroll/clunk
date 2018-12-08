@@ -61,6 +61,7 @@ void initttable(long memuse)
                       MAP_ANON | MAP_PRIVATE, -1, 0);
     ttable = (struct tableentry *) mem;
 
+    /*
     // read in table data if present
     FILE * book = fopen(BOOKFILENAME, "r");
     if (book)
@@ -76,25 +77,19 @@ void initttable(long memuse)
         //printf(" done.\n");
         //fflush(stdout);
     }
+    */
 }
 
 void ttput(struct tableentry newentry)
 {
     int index = ttindex(newentry.hash);
     struct tableentry * entry = & ttable[index];
-
-    //if (newentry.worth >= entry->worth) * entry = newentry;
-    //else entry->worth -= newentry.worth;
 }
 
 struct tableentry * ttget(hash_t hash)
 {
     struct tableentry * entry = & ttable[ttindex(hash)];
 
-    if (entry->hash == hash)
-    {
-      //entry->worth = entry->depth;
-      return entry;
-    }
+    if (entry->hash == hash) return entry;
     else return NULL;
 }

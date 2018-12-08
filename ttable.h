@@ -6,7 +6,7 @@ struct tableentry
 {
     hash_t hash;
     double scoreguess;
-    double visits;
+    int visits;
     struct genstate ctx;
 };
 

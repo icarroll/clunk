@@ -1,9 +1,10 @@
 #include <math.h>
 #include <stdlib.h>
 
-#include "thudlib.h"
 #include "mctree.h"
 #include "mcts.h"
+#include "thudlib.h"
+#include "ttable.h"
 
 // TODO move this into game state struct
 int movenum = 0;   // move number of game
@@ -12,52 +13,68 @@ int lastcapt = 0;   // move number of last capture
 int farthest;   // highest movenum visited this search
 int visited;   // total nodes visited
 
+void die(char * msg) {
+    fputs(msg, stderr);
+    putc('\n', stderr);
+    exit(1);
+}
+
 struct move montecarlo(struct thudboard * board, int searchtime) {
     time_t stoptime = time(NULL) + searchtime;
-
-    struct mctreenode * root = malloc(sizeof(struct mctreenode));
-    initmctree(root, board);
 
     farthest = movenum;
     visited = 1;
 
-    jmp_buf stopsearch;
+    struct thudboard root = * board;
+
+    jmp_buf stopsearch; // not really necessary since a single step is short
     if (setjmp(stopsearch) == 0) while (time(NULL) < stoptime)
     {
-        mcts_step(root, movenum, lastcapt);
+        mcts_step(& root, movenum, lastcapt);
     }
 
     printf("visited %d nodes with max depth %d\n", visited, farthest-movenum);
 
     // choose most visited child as move to make
-    struct move bestmove = root->allmoves.moves[0];
-    int bestvisited = root->children[0].visits;
-    for (int ix=1 ; ix<root->allmoves.used ; ix+=1) {
-        if (root->children[ix].visits > bestvisited) {
-            bestmove = root->allmoves.moves[ix];
-            bestvisited = root->children[ix].visits;
-        }
-    }
-    printf("chose "); showmove(& bestmove);
+    struct movelist moves = allmoves(& root);
+    struct move bestmove;
+    int bestvisits = INT_MIN;
+    for (int ix=0 ; ix<moves.used ; ix+=1) {
+        domove(& root, & moves.moves[ix]);
 
-    printf("freeing tree\n"); fflush(stdout);
-    closemctree(root); //TODO reuse relevant subtree
-    free(root);
-    printf("freed tree\n"); fflush(stdout);
+        struct tableentry * entry = ttget(root.hash);
+        if (! entry) continue;
+        if (entry->visits > bestvisits) {
+            bestmove = moves.moves[ix];
+            bestvisits = entry->visits;
+        }
+        undomove(& root, & moves.moves[ix]);
+    }
+
+    if (bestvisits == INT_MIN) die("no move found");
 
     return bestmove;
 }
 
-double mcts_step(struct mctreenode * node, int movenum, int lastcapt) {
+double mcts_step(struct thudboard * board, int movenum, int lastcapt) {
     if (movenum > farthest) farthest = movenum;
 
-    node->visits += 1;
     visited += 1;   // count all nodes visited
 
     if (movenum - lastcapt > DRAW_DEADLINE) {
         // terminal node, game over
-        return (double) score_game(& node->boardstate);
+        return (double) score_game(board);
     }
+
+    struct tableentry * entry = ttget(board->hash);
+    if (! entry) {
+        // first visit, put table entry
+        struct genstate ctx; ctx.resume = NULL;
+        ttput((struct tableentry) {board->hash, 0, 0, ctx});
+        entry = ttget(board->hash);
+    }
+
+    entry->visits += 1;
 
     double guess;
     if (node->unexplored_moves) {
