@@ -37,6 +37,7 @@ char * stdlayout[] =
 
 void setupgame(struct thudboard * board, long memuse)
 {
+    LOGF = stderr;
     inithash();
     initttable(memuse);
     setup(board);
@@ -78,9 +79,9 @@ struct move iterdeepen(struct thudboard * board, int searchtime)
                  stoptime, stopsearch);
         bestmove = move;
 
-        // log to stderr
-        fprintf(stderr, "best move at depth %d: ", depth);
-        fshowmove(stderr, & bestmove);
+        // log thoughts
+        fprintf(LOGF, "best move at depth %d: ", depth);
+        fshowmove(LOGF, & bestmove);
     }
 
     return bestmove;

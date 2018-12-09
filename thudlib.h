@@ -27,6 +27,7 @@ enum {DRAW_DEADLINE = 10};
 
 enum {FULL_WIDTH = INT_MAX};
 
+FILE * LOGF;
 void setupgame(struct thudboard * board, long memuse);
 
 struct move iterdeepen(struct thudboard * board, int searchtime);
