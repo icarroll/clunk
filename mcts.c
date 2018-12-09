@@ -33,7 +33,7 @@ struct move montecarlo(struct thudboard * board, int searchtime) {
         mcts_step(& root, movenum, lastcapt);
     }
 
-    printf("visited %d nodes with max depth %d\n", visited, farthest-movenum);
+    fprintf(stderr, "visited %d nodes with max depth %d\n", visited, farthest-movenum);
 
     // choose most visited child as move to make
     struct movelist moves = allmoves(& root);
@@ -43,11 +43,12 @@ struct move montecarlo(struct thudboard * board, int searchtime) {
         domove(& root, & moves.moves[ix]);
 
         struct tableentry * entry = ttget(root.hash);
-        if (! entry) continue;
+        if (! entry) goto skip; //TODO what to do here?
         if (entry->visits > bestvisits) {
             bestmove = moves.moves[ix];
             bestvisits = entry->visits;
         }
+skip:
         undomove(& root, & moves.moves[ix]);
     }
 

@@ -1029,6 +1029,14 @@ bool legaltrollmove(struct thudboard * board, struct move * move)
 
 void domove(struct thudboard * board, struct move * move)
 {
+    /*
+    if (! legalmove(board, move)) {
+        printf("illegal move: ");
+        showmove(move);
+        die("oops");
+    }
+    */
+
     if (board->isdwarfturn) dodwarf(board, move);
     else dotroll(board, move);
 }
