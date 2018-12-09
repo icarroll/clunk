@@ -16,6 +16,10 @@ hash_t randomhash(void)
 
 void inithash(void)
 {
+    // hashes should be "random" yet must be the same every run
+    // otherwise the opening book file will be unusable
+    srandom(1);
+
     turnhash = randomhash();
 
     for (int i=0; i < SIZE*SIZE; ++i)
@@ -40,7 +44,7 @@ void hashtroll(struct thudboard * board, struct coord pos)
     board->hash ^= trollhash[pos.y*SIZE + pos.x];
 }
 
-int TTABLESIZE;
+long TTABLESIZE;
 struct tableentry * ttable;
 
 int ttindex(hash_t hash)
@@ -48,7 +52,7 @@ int ttindex(hash_t hash)
     return hash % TTABLESIZE;
 }
 
-void initttable(int memuse)
+void initttable(long memuse)
 {
     TTABLESIZE = memuse / sizeof(struct tableentry);
 

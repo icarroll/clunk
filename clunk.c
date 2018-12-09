@@ -23,29 +23,38 @@ movefunc_t * movefuncs[] = {computermove, computermove};
 
 struct thudboard board_data;
 
+extern int eval_count;
+
 int main(int numargs, char * args[])
 {
     struct thudboard * board = & board_data;
     struct move move;
 
+    /*
     int memuse = 1024 * 1024 * (numargs > 1 ? strtol(args[1], NULL, 10)
                                             : sizeof(struct tableentry));
+    */
 
+    long memuse = 4l * 1024 * 1024 * 1024;
     setupgame(board, memuse);
 
     setupsides();
 
     int moves_since_capt = 0;
-    while (moves_since_capt <= 10)
+    while (moves_since_capt <= DRAW_DEADLINE)
     {
         putchar('\n');
         show(board);
+
+        eval_count = 0;
 
         //time_t start = time(NULL);
         move = movefuncs[board->isdwarfturn ? DWARF : TROLL](board);
         //time_t elapsed = time(NULL) - start;
         //printf("Thinking took %d second%s.\n", elapsed, pl(elapsed));
         domoveupdatecapts(board, & move);
+
+        //printf("evaluated %d board positions\n", eval_count);
 
         if (move.numcapts) moves_since_capt = 0;
         else moves_since_capt += 1;

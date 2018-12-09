@@ -9,11 +9,11 @@ enum {DEPTH = 6};   // takes about 40 minutes on a fast machine
 
 FILE * book;
 
-int TTABLESIZE;
+long TTABLESIZE;
 struct tableentry * ttable;
 
-void initbtable(int memuse);
-int BTABLESIZE;
+void initbtable(long memuse);
+long BTABLESIZE;
 struct tableentry * btable;
 
 struct thudboard board_data;
@@ -22,12 +22,15 @@ int main(int numargs, char * args[])
 {
     struct thudboard * board = & board_data;
 
-    int memuse = 1024 * 1024 * (numargs > 1 ? strtol(args[1], NULL, 10)
+    /*
+    long memuse = 1024 * 1024 * (numargs > 1 ? strtol(args[1], NULL, 10)
                                             : sizeof(struct tableentry));
+    */
 
+    long memuse = 4l * 1024 * 1024 * 1024;
     setupgame(board, memuse);
 
-    initbtable(1024 * 1024 * sizeof(struct tableentry));
+    initbtable(4l * 1024 * 1024 * 1024); // * sizeof(struct tableentry));
 
     for (int depth=2; depth <= DEPTH; depth += 1)
     {
@@ -88,7 +91,7 @@ void hashtroll(struct thudboard * board, struct coord pos)
     board->hash ^= trollhash[pos.y*SIZE + pos.x];
 }
 
-void initttable(int memuse)
+void initttable(long memuse)
 {
     TTABLESIZE = memuse / sizeof(struct tableentry);
 
@@ -97,7 +100,7 @@ void initttable(int memuse)
     ttable = (struct tableentry *) mem;
 }
 
-void initbtable(int memuse)
+void initbtable(long memuse)
 {
     BTABLESIZE = memuse / sizeof(struct tableentry);
 

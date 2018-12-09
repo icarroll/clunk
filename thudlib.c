@@ -35,7 +35,7 @@ char * stdlayout[] =
     "#####dd.dd#####",
 };
 
-void setupgame(struct thudboard * board, int memuse)
+void setupgame(struct thudboard * board, long memuse)
 {
     inithash();
     initttable(memuse);
@@ -856,8 +856,11 @@ void show(struct thudboard * board)
     fflush(stdout);
 }
 
+int eval_count = 0;
+
 int evaluate(struct thudboard * board)
 {
+    eval_count += 1;
     struct tableentry * entry = ttget(board->hash);
     if (entry) return entry->scoreguess;
     else return heuristic(board);
@@ -867,6 +870,12 @@ int heuristic(struct thudboard * board)
 {
     int shake = ((double) random() / (double) RAND_MAX * 2.0 - 1.0) * 10.0;
     return 4000 * board->numtrolls - 1000 * board->numdwarfs + shake;
+}
+
+int score_game(struct thudboard * board)
+{
+    return 4000 * board->numtrolls
+           - 1000 * board->numdwarfs;
 }
 
 bool legalmove(struct thudboard * board, struct move * move)
