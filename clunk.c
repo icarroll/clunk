@@ -9,7 +9,7 @@
 #include "ttable.h"
 #include "thudlib.h"
 
-enum {SEARCHSECS = 10};
+enum {SEARCHSECS = 1};
 
 void setupsides(void);
 struct move humanmove(struct thudboard * board);

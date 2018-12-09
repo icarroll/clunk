@@ -865,9 +865,8 @@ int evaluate(struct thudboard * board)
 
 int heuristic(struct thudboard * board)
 {
-    return 4000 * board->numtrolls
-           - 1000 * board->numdwarfs
-           - board->dwarfclump;
+    int shake = ((double) random() / (double) RAND_MAX * 2.0 - 1.0) * 10.0;
+    return 4000 * board->numtrolls - 1000 * board->numdwarfs + shake;
 }
 
 bool legalmove(struct thudboard * board, struct move * move)
