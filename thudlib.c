@@ -867,10 +867,118 @@ int evaluate(struct thudboard * board)
     else return heuristic(board);
 }
 
+int popcount16(uint16_t bits) {
+    uint16_t count;
+    count = (bits & 0x5555) + ((bits >> 1) & 0x5555);
+    count = (count & 0x3333) + ((count >> 2) & 0x3333);
+    count = (count & 0x0F0F) + ((count >> 4) & 0x0F0F);
+    count = (count & 0x00FF) + ((count >> 8) & 0x00FF);
+    return count;
+}
+
+int threatenedtrolls(struct thudboard * board) {
+    bitboard threateneds;
+    for (int n=0 ; n<SIZE ; n+=1) threateneds[n] = (uint16_t) 0;
+
+    struct coord from = initpos;
+    while (true)
+    {
+        from = nextpos(board->dwarfs, from);
+        if (from.x == -1) break;
+
+        for (int dir = 0; dir < NUMDIRS; ++dir)
+        {
+            int dx = DX[dir];
+            int dy = DY[dir];
+
+            for (int dist = 1; dist < SIZE ; ++dist)
+            {
+                struct coord to = {from.x + dx * dist,
+                                   from.y + dy * dist};
+                if (! inbounds(to)) break;
+
+                if (dwarfat(board, to) || blockat(board, to)) break;
+
+                struct coord check = {from.x - dx * (dist-1),
+                                      from.y - dy * (dist-1)};
+                if (! inbounds(check) || ! dwarfat(board, check)) break;
+
+                if (trollat(board, to))
+                {
+                    set(threateneds, to);
+                    break;
+                }
+            }
+        }
+    }
+
+    int count = 0;
+    for (int n=0 ; n<SIZE ; n+=1) {
+        count += popcount16(threateneds[n]);
+    }
+
+    return count;
+}
+
+int threateneddwarfs(struct thudboard * board) {
+    bitboard threateneds;
+    for (int n=0 ; n<SIZE ; n+=1) threateneds[n] = (uint16_t) 0;
+
+    struct coord from = initpos;
+    while (true)
+    {
+        from = nextpos(board->trolls, from);
+        if (from.x == -1) break;
+
+        for (int dir = 0; dir < NUMDIRS; ++dir)
+        {
+            int dx = DX[dir];
+            int dy = DY[dir];
+
+            for (int dist = 1; dist < SIZE ; ++dist)
+            {
+                struct coord to = {from.x + dx * dist,
+                                   from.y + dy * dist};
+                if (! inbounds(to)) break;
+
+                if (occupied(board, to)) break;
+
+                struct coord check = {from.x - dx * (dist-1),
+                                      from.y - dy * (dist-1)};
+                if (! inbounds(check) || ! trollat(board, check)) break;
+
+                if (hasneighbor(board->dwarfs, to))
+                {
+                    for (int i=0; i < NUMDIRS; ++i)
+                    {
+                        struct coord capt = {to.x + DX[i],
+                                             to.y + DY[i]};
+                        if (inbounds(capt) && dwarfat(board, capt))
+                        {
+                            set(threateneds, capt);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    int count = 0;
+    for (int n=0 ; n<SIZE ; n+=1) {
+        count += popcount16(threateneds[n]);
+    }
+
+    return count;
+}
+
 int heuristic(struct thudboard * board)
 {
+    int havetroll = 4000 * board->numtrolls;
+    int threattroll = 4000 * threatenedtrolls(board);
+    int havedwarf = 1000 * board->numdwarfs;
+    int threatdwarf = 4000 * threateneddwarfs(board);
     int shake = ((double) random() / (double) RAND_MAX * 2.0 - 1.0) * 10.0;
-    return 4000 * board->numtrolls - 1000 * board->numdwarfs + shake;
+    return (havetroll - 2*threattroll) - (havedwarf - 2*threatdwarf) + shake;
 }
 
 int score_game(struct thudboard * board)

@@ -2,6 +2,8 @@
 
 #include "thudlib.h"
 
+extern struct coord initpos;
+
 enum {SEARCHSECS = 1};
 enum {SEARCHDEPTH = 4};
 
@@ -14,7 +16,7 @@ int main(int numargs, char * args[]) {
     struct thudboard * board = & board_data;
     struct move move;
 
-    long memuse = 4l * 1024 * 1024 * 1024;
+    long memuse = 1l * 1024 * 1024 * 1024;
     setupgame(board, memuse);
     LOGF = fopen("/dev/null", "w");
 
@@ -41,7 +43,52 @@ int main(int numargs, char * args[]) {
     char filename[65536];
     sprintf(filename, "run-depth%d-%d", SEARCHDEPTH, starttime);
     FILE * out = fopen(filename, "w");
+
+    setup(board);
+
+    bitboard spaces;
+    for (int n=0 ; n<SIZE ; n+=1) spaces[n] = board->blocks[n] ^ (uint16_t) -1;
+
+    // header row
+    struct coord pos = initpos;
+    while (true) {
+        pos = nextpos(spaces, pos);
+        if (pos.x == -1) break;
+
+        fshowpos(out, pos);
+        fprintf(out, ",");
+    }
+    fprintf(out, "turn,score\n");
+
+    // loop over all coordinates in spaces, output dwarf vs troll
+    pos = initpos;
+    while (true) {
+        pos = nextpos(spaces, pos);
+        if (pos.x == -1) break;
+
+        if (dwarfat(board, pos)) fprintf(out, "-1");
+        else if (trollat(board, pos)) fprintf(out, "1");
+        else fprintf(out, "0");
+
+        fprintf(out, ",");
+    }
+    fprintf(out, "%d,%e\n", board->isdwarfturn?-1:1, 0.0);
+
     for (int ix=0 ; ix<moves.used ; ix+=1) {
-        //for (int x
+        domoveupdatecapts(board, & moves.moves[ix]);
+
+        // loop over all coordinates in spaces, output dwarf vs troll
+        pos = initpos;
+        while (true) {
+            pos = nextpos(spaces, pos);
+            if (pos.x == -1) break;
+
+            if (dwarfat(board, pos)) fprintf(out, "-1");
+            else if (trollat(board, pos)) fprintf(out, "1");
+            else fprintf(out, "0");
+
+            fprintf(out, ",");
+        }
+        fprintf(out, "%d,%e\n", board->isdwarfturn?-1:1, (double) finalscore * (ix+1) / moves.used);
     }
 }
