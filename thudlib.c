@@ -87,6 +87,30 @@ struct move iterdeepen(struct thudboard * board, int searchtime)
     return bestmove;
 }
 
+struct move iterdeepenext(struct thudboard * board, int searchtime)
+{
+    struct move bestmove;
+
+    struct thudboard tempboard = * board;
+    time_t stoptime = time(NULL) + searchtime;
+
+    jmp_buf stopsearch;
+    if (setjmp(stopsearch) == 0) for (int depth=1; true; depth += 1)
+    {
+        struct move move;
+        absearchext(& tempboard, depth, FULL_WIDTH,
+                    INT_MIN, INT_MAX, & move,
+                    stoptime, stopsearch);
+        bestmove = move;
+
+        // log thoughts
+        fprintf(LOGF, "best move at depth %d: ", depth);
+        fshowmove(LOGF, & bestmove);
+    }
+
+    return bestmove;
+}
+
 struct move beamiterdeepen(struct thudboard * board, int searchtime)
 {
     struct move bestmove;
@@ -308,6 +332,123 @@ search:
     closelist(& list);
 
     return (isdwarfturn ^ cutoff) ? dwmax : trmin;
+}
+
+int absearchext(struct thudboard * board, int depth, int width,
+                int trmin, int dwmax, struct move * bestmove,
+                time_t stoptime, jmp_buf stopsearch)
+{
+    if (stoptime && time(NULL) > stoptime) longjmp(stopsearch, true);
+
+    if (depth < 1) return evaluate(board);
+
+    struct move * move;
+    bool cutoff = false;
+
+    int nextdepth = depth - 1;
+
+    bool isdwarfturn = board->isdwarfturn;
+
+    struct movelist list = allmoves(board);
+    struct moveheap queue = heapof(board, & list);
+
+    for (int i = width; i > 0 && queue.used > 0; --i)
+    {
+        move = pop(& queue);
+
+        // if moving a piece into threat, always search at least one more ply
+        if (moveintothreat(board, move)) {
+            nextdepth < SEARCH_EXT ? SEARCH_EXT : nextdepth;
+        }
+
+        domove(board, move);
+
+        int result;
+
+        struct tableentry * entry = ttget(board->hash);
+        if (entry && entry->depth >= nextdepth)
+        {
+            if (entry->min == entry->max) result = entry->min;
+            else
+            {
+                if (entry->max <= trmin || entry->min >= dwmax)
+                {
+                    result = entry->scoreguess;
+                }
+                else
+                {
+                    int windlow = min(trmin, entry->min);
+                    int windhigh = max(dwmax, entry->max);
+                    result = absearchext(board, nextdepth, width,
+                                         windlow, windhigh, NULL,
+                                         stoptime, stopsearch);
+
+                    if (result < entry->min || result > entry->max)
+                    {
+                        goto search;
+                    }
+
+                    if (entry->depth == nextdepth)
+                    {
+                        entry->scoreguess = result;
+                        if (result < windhigh) entry->max = result;
+                        if (result > windlow) entry->min = result;
+                    }
+                }
+            }
+        }
+        else
+        {
+search:
+            result = absearchext(board, nextdepth, width,
+                                 trmin, dwmax, NULL,
+                                 stoptime, stopsearch);
+
+            int min, max;
+            min = max = result;
+            if (result < trmin) min = INT_MIN;
+            else if (result > dwmax) max = INT_MAX;
+
+            if (! entry) ttput((struct tableentry)
+                    {board->hash, nextdepth, nextdepth, result, min, max});
+        }
+
+        // the only problem with not doing negamax
+        if (isdwarfturn)
+        {
+            if (result < dwmax)
+            {
+                dwmax = result;
+                if (bestmove) * bestmove = * move;
+            }
+        }
+        else
+        {
+            if (result > trmin)
+            {
+                trmin = result;
+                if (bestmove) * bestmove = * move;
+            }
+        }
+
+        undomove(board, move);
+
+        if (trmin >= dwmax)
+        {
+            cutoff = true;
+            break;
+        }
+    }
+
+    closeheap(& queue);
+    closelist(& list);
+
+    return (isdwarfturn ^ cutoff) ? dwmax : trmin;
+}
+
+//TODO for now just check for dwarf moving next to troll
+bool moveintothreat(struct thudboard * board, struct move * move) {
+    return move->isdwarfmove && hasneighbor(board->trolls, move->to);
 }
 
 /*
@@ -971,14 +1112,35 @@ int threateneddwarfs(struct thudboard * board) {
     return count;
 }
 
+int area(bitboard bits) {
+    bitrow_t smashed = 0;
+    for (int ix=0 ; ix<SIZE ; ix+=1) smashed |= bits[ix];
+    if (! smashed) return 0;
+
+    int left;
+    for (left=0 ; left<SIZE ; left+=1) if (HIGHBIT & (smashed << left)) break;
+
+    int right;
+    for (right=0 ; right<SIZE ; right+=1) if (0b10 & (smashed >> right)) break;
+
+    int top;
+    for (top=0 ; top<SIZE ; top+=1) if (bits[top] == 0) break;
+
+    int bot;
+    for (bot=SIZE-1 ; bot>=0 ; bot-=1) if (bits[bot] == 0) break;
+
+    return (left - right) * (bot - top);
+}
+
 int heuristic(struct thudboard * board)
 {
     int havetroll = 4000 * board->numtrolls;
-    int threattroll = 4000 * threatenedtrolls(board);
+    int threattroll = 0; //4000 * threatenedtrolls(board);
     int havedwarf = 1000 * board->numdwarfs;
-    int threatdwarf = 4000 * threateneddwarfs(board);
+    int threatdwarf = 0; //4000 * threateneddwarfs(board);
+    int smol = 0; //15*15 - area(board->dwarfs);
     int shake = ((double) random() / (double) RAND_MAX * 2.0 - 1.0) * 10.0;
-    return (havetroll - 2*threattroll) - (havedwarf - 2*threatdwarf) + shake;
+    return (havetroll - threattroll) - (havedwarf - threatdwarf + smol) + shake;
 }
 
 int score_game(struct thudboard * board)
@@ -1289,8 +1451,6 @@ bool blockat(struct thudboard * board, struct coord pos)
 {
     return get(board->blocks, pos);
 }
-
-enum {HIGHBIT = 1 << (SIZE - 1)};
 
 bitrow_t bit(int x)
 {

@@ -27,10 +27,13 @@ enum {DRAW_DEADLINE = 10};
 
 enum {FULL_WIDTH = INT_MAX};
 
+enum {SEARCH_EXT = 2};
+
 FILE * LOGF;
 void setupgame(struct thudboard * board, long memuse);
 
 struct move iterdeepen(struct thudboard * board, int searchtime);
+struct move iterdeepenext(struct thudboard * board, int searchtime);
 struct move zerowindow(struct thudboard * board, int depth,
                        time_t stoptime, jmp_buf stopsearch);
 int mtdf(struct thudboard * board, int depth, int guess,
@@ -41,6 +44,11 @@ int _mtdf(struct thudboard * board, int depth,
 int absearch(struct thudboard * board, int depth, int width,
              int trmin, int dwmax, struct move * bestmove,
              time_t stoptime, jmp_buf stopsearch);
+int absearchext(struct thudboard * board, int depth, int width,
+                int trmin, int dwmax, struct move * bestmove,
+                time_t stoptime, jmp_buf stopsearch);
+
+bool moveintothreat(struct thudboard * board, struct move * move);
 
 struct moveheap heapof(struct thudboard * board, struct movelist * list);
 struct movelist allmoves(struct thudboard * board);
@@ -92,6 +100,7 @@ void showpos(struct coord pos);
 void fshowmove(FILE * stream, struct move * move);
 void showmove(struct move * move);
 
+enum {HIGHBIT = 1 << (SIZE - 1)};
 bool get(bitboard bits, struct coord pos);
 void set(bitboard bits, struct coord pos);
 void unset(bitboard bits, struct coord pos);

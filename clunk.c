@@ -9,7 +9,7 @@
 #include "ttable.h"
 #include "thudlib.h"
 
-enum {SEARCHSECS = 1};
+enum {SEARCHSECS = 10};
 
 void setupsides(void);
 struct move humanmove(struct thudboard * board);
@@ -102,7 +102,7 @@ struct move computermove(struct thudboard * board)
 
     puts("Thinking...");
     fflush(stdout);
-    move = iterdeepen(board, SEARCHSECS);
+    move = iterdeepenext(board, SEARCHSECS);
     showmove(& move);
 
     return move;
