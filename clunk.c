@@ -9,7 +9,7 @@
 #include "ttable.h"
 #include "thudlib.h"
 
-enum {SEARCHSECS = 10};
+enum {SEARCHSECS = 1};
 
 void setupsides(void);
 struct move humanmove(struct thudboard * board);
@@ -24,6 +24,9 @@ movefunc_t * movefuncs[] = {computermove, computermove};
 struct thudboard board_data;
 
 extern int eval_count;
+
+extern long TTABLESIZE;
+extern struct tableentry * ttable;
 
 int main(int numargs, char * args[])
 {
@@ -61,6 +64,18 @@ int main(int numargs, char * args[])
     }
 
     printf("game over, final score: dwarf=%d, troll=%d\n", board->trollscaptured*4, board->dwarfscaptured);
+
+    printf("writing ttable\n");
+    FILE * book = fopen(BOOKFILENAME, "w");
+    for (int i=0; i<TTABLESIZE; i+=1)
+    {
+        if (ttable[i].hash != 0)
+        {
+            fwrite(& ttable[i], sizeof(struct tableentry), 1, book);
+        }
+    }
+    fclose(book);
+    printf("done\n");
 }
 
 void setupsides(void)

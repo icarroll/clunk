@@ -65,16 +65,16 @@ void initttable(long memuse)
     FILE * book = fopen(BOOKFILENAME, "r");
     if (book)
     {
-        //printf("Reading opening book...");
-        //fflush(stdout);
+        printf("Reading ttable...");
+        fflush(stdout);
         struct tableentry temp;
         while (fread(& temp, sizeof(struct tableentry), 1, book))
         {
             int index = ttindex(temp.hash);
             ttable[index] = temp;
         }
-        //printf(" done.\n");
-        //fflush(stdout);
+        printf(" done.\n");
+        fflush(stdout);
     }
 }
 
