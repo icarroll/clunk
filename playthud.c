@@ -3,7 +3,6 @@
 
 #include <stdio.h>
 #include <ctype.h>
-#include <readline/readline.h>
 
 enum {SEARCHSECS = 30};
 

@@ -28,6 +28,7 @@ enum {FULL_WIDTH = INT_MAX};
 void setupgame(struct thudboard * board, int memuse);
 
 struct move iterdeepen(struct thudboard * board, int searchtime);
+struct move beamiterdeepen(struct thudboard * board, int searchtime);
 struct move zerowindow(struct thudboard * board, int depth,
                        time_t stoptime, jmp_buf stopsearch);
 int mtdf(struct thudboard * board, int depth, int guess,

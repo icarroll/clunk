@@ -101,9 +101,9 @@ struct move beamiterdeepen(struct thudboard * board, int searchtime)
                  0, NULL);
         bestmove = move;
 
-        //??? write to log?
-        //printf("best move at depth %d: ", depth);
-        //showmove(& bestmove);
+        // log to stderr
+        fprintf(stderr, "best move at depth %d: ", depth);
+        fshowmove(stderr, & bestmove);
     }
 
     jmp_buf stopsearch;
@@ -120,9 +120,10 @@ struct move beamiterdeepen(struct thudboard * board, int searchtime)
         bestmove = zerowindow(& tempboard, depth, stoptime, stopsearch);
         */
 
-        //??? write to log?
-        //printf("best width 20 move at depth %d: ", depth);
-        //showmove(& bestmove);
+        // log to stderr
+        fprintf(stderr, "best move at depth %d: ", depth);
+        fprintf(stderr, "best width 20 move at depth %d: ", depth);
+        fshowmove(stderr, & bestmove);
     }
 
     return bestmove;

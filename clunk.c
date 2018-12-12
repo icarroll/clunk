@@ -9,7 +9,7 @@
 #include "ttable.h"
 #include "thudlib.h"
 
-enum {SEARCHSECS = 10};
+enum {SEARCHSECS = 30};
 
 void setupsides(void);
 struct move humanmove(struct thudboard * board);
@@ -36,7 +36,7 @@ int main(int numargs, char * args[])
     setupsides();
 
     int moves_since_capt = 0;
-    while (moves_since_capt <= 10)
+    while (moves_since_capt <= 20)
     {
         putchar('\n');
         show(board);
@@ -93,7 +93,8 @@ struct move computermove(struct thudboard * board)
 
     puts("Thinking...");
     fflush(stdout);
-    move = iterdeepen(board, SEARCHSECS);
+    if (board->isdwarfturn) move = iterdeepen(board, SEARCHSECS);
+    else move = iterdeepen(board, 1);
     showmove(& move);
 
     return move;
