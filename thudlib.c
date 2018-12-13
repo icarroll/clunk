@@ -790,16 +790,34 @@ struct movelist alltrollmoves(struct thudboard * board)
 
                 if (hasneighbor(board->dwarfs, to))
                 {
-                    struct move * move = next(& moves);
-                    * move = (struct move) {false, from, to, 0, {}};
-
-                    for (int i=0; i < NUMDIRS; ++i)
-                    {
-                        struct coord capt = {to.x + DX[i],
-                                             to.y + DY[i]};
-                        if (inbounds(capt) && dwarfat(board, capt))
+                    struct coord shovebuddy = {from.x - dx, from.y - dy};
+                    if (dist == 1 && ! (inbounds(shovebuddy)
+                                        && trollat(board, shovebuddy))) {
+                        // can only capture one dwarf if not shoved
+                        for (int i=0; i < NUMDIRS; ++i)
                         {
-                            move->capts[move->numcapts++] = capt;
+                            struct coord capt = {to.x + DX[i],
+                                                 to.y + DY[i]};
+                            if (inbounds(capt) && dwarfat(board, capt))
+                            {
+                                struct move * move = next(& moves);
+                                * move = (struct move) {false, from, to, 0, {}};
+                                move->capts[move->numcapts++] = capt;
+                            }
+                        }
+                    }
+                    else {
+                        struct move * move = next(& moves);
+                        * move = (struct move) {false, from, to, 0, {}};
+
+                        for (int i=0; i < NUMDIRS; ++i)
+                        {
+                            struct coord capt = {to.x + DX[i],
+                                                 to.y + DY[i]};
+                            if (inbounds(capt) && dwarfat(board, capt))
+                            {
+                                move->capts[move->numcapts++] = capt;
+                            }
                         }
                     }
                 }
@@ -848,6 +866,7 @@ struct move nexttrollplay(struct thudboard * board, struct genstate * ctx)
             ctx->dx = DX[ctx->dir];
             ctx->dy = DY[ctx->dir];
 
+            //TODO unshoved troll can only capture one dwarf
             for (ctx->dist = 1; ctx->dist < SIZE ; ++ctx->dist)
             {
                 ctx->move.to.x = ctx->move.from.x + ctx->dx * ctx->dist;
