@@ -44,6 +44,7 @@ struct move montecarlo(struct thudboard * board, int searchtime) {
 
         struct tableentry * entry = ttget(root.hash);
         if (! entry) goto skip; //TODO what to do here?
+        //printf("%d ",entry->visits);
         if (entry->visits > bestvisits) {
             bestmove = moves.moves[ix];
             bestvisits = entry->visits;
