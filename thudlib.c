@@ -111,6 +111,43 @@ struct move iterdeepenext(struct thudboard * board, int searchtime)
     return bestmove;
 }
 
+// search at least sdepth, then using up rest of stime if any
+struct move searchdepthtime(struct thudboard * board, int sdepth, int stime) {
+    struct move bestmove;
+
+    struct thudboard tempboard = * board;
+    time_t stoptime = time(NULL) + stime;
+
+    for (int depth=1; depth <= sdepth; depth += 1)
+    {
+        struct move move;
+        absearchext(& tempboard, depth, FULL_WIDTH,
+                    INT_MIN, INT_MAX, & move,
+                    0, NULL);
+        bestmove = move;
+
+        // log thoughts
+        fprintf(LOGF, "best move at depth %d: ", depth);
+        fshowmove(LOGF, & bestmove);
+    }
+
+    jmp_buf stopsearch;
+    if (setjmp(stopsearch) == 0) for (int depth=sdepth+1; true; depth += 1)
+    {
+        struct move move;
+        absearchext(& tempboard, depth, FULL_WIDTH,
+                    INT_MIN, INT_MAX, & move,
+                    stoptime, stopsearch);
+        bestmove = move;
+
+        // log thoughts
+        fprintf(LOGF, "best move at depth %d: ", depth);
+        fshowmove(LOGF, & bestmove);
+    }
+
+    return bestmove;
+}
+
 struct move beamiterdeepen(struct thudboard * board, int searchtime)
 {
     struct move bestmove;

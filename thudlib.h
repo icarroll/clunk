@@ -34,6 +34,7 @@ void setupgame(struct thudboard * board, long memuse);
 
 struct move iterdeepen(struct thudboard * board, int searchtime);
 struct move iterdeepenext(struct thudboard * board, int searchtime);
+struct move searchdepthtime(struct thudboard * board, int sdepth, int stime);
 struct move zerowindow(struct thudboard * board, int depth,
                        time_t stoptime, jmp_buf stopsearch);
 int mtdf(struct thudboard * board, int depth, int guess,
