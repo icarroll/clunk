@@ -1158,8 +1158,9 @@ int heuristic(struct thudboard * board)
     int havedwarf = 1000 * board->numdwarfs;
     int threatdwarf = 0; //4000 * threateneddwarfs(board);
     int smol = 0; //15*15 - area(board->dwarfs);
+    int clump = 10 * board->dwarfclump;
     int shake = ((double) random() / (double) RAND_MAX * 2.0 - 1.0) * 10.0;
-    return (havetroll - threattroll) - (havedwarf - threatdwarf + smol) + shake;
+    return (havetroll - threattroll) - (havedwarf - threatdwarf + smol + clump) + shake;
 }
 
 int score_game(struct thudboard * board)
