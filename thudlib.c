@@ -272,6 +272,8 @@ int absearch(struct thudboard * board, int depth, int width,
 
     if (depth < 1) return evaluate(board);
 
+    if (board->numtrolls < 1 || board->numdwarfs < 1) return evaluate(board);
+
     struct move * move;
     bool cutoff = false;
 

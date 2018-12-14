@@ -117,7 +117,9 @@ struct move computermove(struct thudboard * board)
 
     puts("Thinking...");
     fflush(stdout);
-    move = searchdepthtime(board, 4, 30);
+    //move = searchdepthtime(board, 4, 30);
+    absearch(board, 3, FULL_WIDTH, INT_MIN, INT_MAX, & move, 0, NULL);
+    //move = iterdeepenext(board, SEARCHSECS);
     /*
     if (board->isdwarfturn) absearch(board, 4, FULL_WIDTH, INT_MIN, INT_MAX, & move, 0, NULL);
     else absearch(board, 3, FULL_WIDTH, INT_MIN, INT_MAX, & move, 0, NULL);

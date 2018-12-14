@@ -1,4 +1,4 @@
-CFLAGS = -O3 -std=gnu99
+CFLAGS = -g -O3 -std=gnu99
 
 TARGETS = clunk book playthud gendata
 OBJS = thudlib.o heap.o list.o linenoise.o ttable.o
