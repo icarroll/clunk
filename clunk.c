@@ -28,6 +28,8 @@ extern int eval_count;
 extern long TTABLESIZE;
 extern struct tableentry * ttable;
 
+bool keepgoing = false;
+
 int main(int numargs, char * args[])
 {
     struct thudboard * board = & board_data;
@@ -42,6 +44,9 @@ int main(int numargs, char * args[])
     setupgame(board, memuse);
 
     setupsides();
+
+yetagain:
+    setup(board);
 
     int moves_since_capt = 0;
     while (moves_since_capt <= 20) //DRAW_DEADLINE)
@@ -76,6 +81,8 @@ int main(int numargs, char * args[])
     }
     fclose(book);
     printf("done\n");
+
+    if (keepgoing) goto yetagain;
 }
 
 void setupsides(void)
@@ -93,6 +100,7 @@ sideagain:
     else if (c == 'D') movefuncs[DWARF] = humanmove;
     else if (c == 'B') movefuncs[TROLL] = movefuncs[DWARF] = humanmove;
     else if (c == 'N') /* computer vs computer */;
+    else if (c == 'I') keepgoing = true /* unending computer vs computer */;
     else goto sideagain;
 }
 
