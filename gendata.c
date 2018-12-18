@@ -1,11 +1,12 @@
 #include <stdio.h>
+#include <unistd.h>
 
 #include "thudlib.h"
 
 extern struct coord initpos;
 
 enum {SEARCHSECS = 1};
-enum {SEARCHDEPTH = 4};
+enum {SEARCHDEPTH = 3};
 
 struct thudboard board_data;
 
@@ -21,10 +22,11 @@ int main(int numargs, char * args[]) {
     LOGF = fopen("/dev/null", "w");
 
     int starttime = time(NULL);
-    srandom(starttime);
+    int pid = getpid();
+    srandom(starttime ^ pid);
 
     int moves_since_capt = 0;
-    while (moves_since_capt <= DRAW_DEADLINE)
+    while (board->numdwarfs && board->numtrolls && moves_since_capt <= DRAW_DEADLINE)
     {
         //move = iterdeepen(board, SEARCHSECS);
         absearch(board, SEARCHDEPTH, FULL_WIDTH, INT_MIN, INT_MAX, & move, 0, NULL);
@@ -41,7 +43,7 @@ int main(int numargs, char * args[]) {
 
     // write out data file
     char filename[65536];
-    sprintf(filename, "run-depth%d-%d", SEARCHDEPTH, starttime);
+    sprintf(filename, "run-depth%d-pid%d-%d", SEARCHDEPTH, pid, starttime);
     FILE * out = fopen(filename, "w");
 
     setup(board);
