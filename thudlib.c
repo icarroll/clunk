@@ -878,7 +878,7 @@ struct movelist alltrollmoves(struct thudboard * board)
 
             if (! inbounds(to)) continue;
 
-            if (occupied(board, to)) break;
+            if (occupied(board, to)) continue;
 
             * next(& moves) = (struct move) {false, from, to, 0, {}};
         }
