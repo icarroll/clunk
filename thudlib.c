@@ -270,9 +270,13 @@ int absearch(struct thudboard * board, int depth, int width,
 {
     if (stoptime && time(NULL) > stoptime) longjmp(stopsearch, true);
 
-    if (depth < 1) return evaluate(board);
+    if (depth < 1) {
+        return evaluate(board);
+    }
 
-    if (board->numtrolls < 1 || board->numdwarfs < 1) return evaluate(board);
+    if (board->numtrolls < 1 || board->numdwarfs < 1) {
+        return evaluate(board);
+    }
 
     struct move * move;
     bool cutoff = false;
@@ -284,6 +288,7 @@ int absearch(struct thudboard * board, int depth, int width,
     struct movelist list = allmoves(board);
     struct moveheap queue = heapof(board, & list);
 
+    // loop over all the moves in the queue
     for (int i = width; i > 0 && queue.used > 0; --i)
     {
         move = pop(& queue);
@@ -295,15 +300,18 @@ int absearch(struct thudboard * board, int depth, int width,
         struct tableentry * entry = ttget(board->hash);
         if (entry && entry->depth >= nextdepth)
         {
+            // ttable entry exists and has depth, so use its min/max values
             if (entry->min == entry->max) result = entry->min;
             else
             {
                 if (entry->max <= trmin || entry->min >= dwmax)
                 {
+                    // ttable entry is narrower than our current window
                     result = entry->scoreguess;
                 }
                 else
                 {
+                    // our window is narrower than ttable entry
                     int windlow = min(trmin, entry->min);
                     int windhigh = max(dwmax, entry->max);
                     result = absearch(board, nextdepth, width,
@@ -312,6 +320,7 @@ int absearch(struct thudboard * board, int depth, int width,
 
                     if (result < entry->min || result > entry->max)
                     {
+                        // search resulted outside of ttable entry window
                         goto search;
                     }
 
@@ -326,6 +335,7 @@ int absearch(struct thudboard * board, int depth, int width,
         }
         else
         {
+            // no usable ttable entry
 search:
             result = absearch(board, nextdepth, width,
                               trmin, dwmax, NULL,

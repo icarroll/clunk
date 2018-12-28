@@ -70,6 +70,7 @@ yetagain:
 
     printf("game over, final score: dwarf=%d, troll=%d\n", board->trollscaptured*4, board->dwarfscaptured);
 
+    /*
     printf("writing ttable\n");
     FILE * book = fopen(BOOKFILENAME, "w");
     for (int i=0; i<TTABLESIZE; i+=1)
@@ -81,6 +82,7 @@ yetagain:
     }
     fclose(book);
     printf("done\n");
+    */
 
     if (keepgoing) goto yetagain;
 }
@@ -125,13 +127,17 @@ struct move computermove(struct thudboard * board)
 
     puts("Thinking...");
     fflush(stdout);
+    int starttime = time(NULL);
     //move = searchdepthtime(board, 4, 30);
-    absearch(board, 3, FULL_WIDTH, INT_MIN, INT_MAX, & move, 0, NULL);
+    //absearch(board, 3, FULL_WIDTH, INT_MIN, INT_MAX, & move, 0, NULL);
+    absearchext(board, 4, FULL_WIDTH, INT_MIN, INT_MAX, & move, 0, NULL);
     //move = iterdeepenext(board, SEARCHSECS);
     /*
     if (board->isdwarfturn) absearch(board, 4, FULL_WIDTH, INT_MIN, INT_MAX, & move, 0, NULL);
     else absearch(board, 3, FULL_WIDTH, INT_MIN, INT_MAX, & move, 0, NULL);
     */
+    int stoptime = time(NULL);
+    printf("thought for %d seconds\n", stoptime - starttime);
     showmove(& move);
 
     return move;
