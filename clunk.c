@@ -25,9 +25,12 @@ movefunc_t * movefuncs[] = {computermove, computermove};
 struct thudboard board_data;
 
 extern int eval_count;
+extern sfmt_t prng;
 
 int main(int numargs, char * args[])
 {
+    sfmt_init_gen_rand(& prng, time(NULL));   // init PRNG with unix time
+
     struct thudboard * board = & board_data;
     struct move move;
 

@@ -6,6 +6,9 @@
 #include "thudlib.h"
 #include "ttable.h"
 
+// PRNG for rollouts
+sfmt_t prng;
+
 // TODO move this into game state struct
 int movenum = 0;   // move number of game
 int lastcapt = 0;   // move number of last capture
@@ -89,7 +92,8 @@ double mcts_step(struct thudboard * board, int movenum, int lastcapt) {
         }
 
         domove(board, & move);
-        guess = mcts_simulate(board);
+        //guess = mcts_simulate(board);
+        guess = mcts_rollout(board, movenum, lastcapt);
         undomove(board, & move);
     }
     else {
@@ -153,4 +157,10 @@ double teamscale(bool isdwarfturn) {
 double mcts_simulate(struct thudboard * board) {
     // no rollout, just heuristic eval
     return (double) heuristic(board);
+}
+
+double mcts_rollout(struct thudboard * board, int movenum, int lastcapt) {
+    uint32_t n = sfmt_genrand_uint32(& prng);
+    while (! gameover);
+    return score_game(board);
 }

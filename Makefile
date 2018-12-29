@@ -1,4 +1,4 @@
-CFLAGS = -O3 -std=gnu99
+CFLAGS = -O3 -std=gnu99 #-DHAVE_SSE2 -DSFMT_MEXP=19937 
 # CFLAGS = -g -std=gnu99
 LDLIBS = -lreadline -lm
 
@@ -17,4 +17,4 @@ clunk: clunk.c $(OBJS)
 playthud: playthud.c $(OBJS)
 
 SFMT.o: SFMT.c SFMT.h SFMT-common.h SFMT-params.h SFMT-params19937.h SFMT-sse2.h SFMT-sse2-msc.h
-	gcc -O3 -finline-functions -fomit-frame-pointer -DNDEBUG -fno-strict-aliasing --param max-inline-insns-single=1800 -Wmissing-prototypes -Wall -std=gnu99 -msse2 -DHAVE_SSE2 -DSFMT_MEXP=19937 -c -o SFMT.o SFMT.c
+	gcc -O3 -finline-functions -fomit-frame-pointer -DNDEBUG -DHAVE_SSE2 -DSFMT_MEXP=19937 -fno-strict-aliasing --param max-inline-insns-single=1800 -Wmissing-prototypes -Wall -std=gnu99 -msse2 -c -o SFMT.o SFMT.c
