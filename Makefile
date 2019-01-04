@@ -1,6 +1,6 @@
 CFLAGS = -g -O3 -std=gnu99
 
-TARGETS = clunk book playthud gendata
+TARGETS = clunk book playthud gendata randomgame
 OBJS = thudlib.o heap.o list.o linenoise.o ttable.o
 
 .PHONY: all
@@ -17,3 +17,5 @@ book: book.c $(filter-out ttable.o,$(OBJS))
 playthud: playthud.c $(OBJS)
 
 gendata: gendata.c $(OBJS)
+
+randomgame: randomgame.c $(OBJS)
