@@ -27,7 +27,7 @@ enum {DRAW_DEADLINE = 10};
 
 enum {FULL_WIDTH = INT_MAX};
 
-enum {SEARCH_EXT = 2};
+enum {SEARCH_EXT = 1};
 
 FILE * LOGF;
 void setupgame(struct thudboard * board, long memuse);

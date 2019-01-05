@@ -407,7 +407,7 @@ int absearchext(struct thudboard * board, int depth, int width,
 
         // if moving a piece into threat, always search at least one more ply
         if (moveintothreat(board, move)) {
-            nextdepth < SEARCH_EXT ? SEARCH_EXT : nextdepth;
+            nextdepth = (nextdepth < SEARCH_EXT) ? SEARCH_EXT : nextdepth;
         }
 
         domove(board, move);
